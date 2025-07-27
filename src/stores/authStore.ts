@@ -30,7 +30,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (userData: {
     email: string;
     password: string;
@@ -42,6 +42,8 @@ interface AuthState {
   fetchUser: () => Promise<void>;
   clearError: () => void;
 }
+
+const TOKEN_KEY = 'token'; // Use consistent key
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -56,24 +58,39 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         
         try {
+          console.log('Attempting login for:', email);
+          
           const response = await api.post('/auth/login', { email, password });
+          console.log('Login response:', response.data);
+          
           const { token, user } = response.data;
           
-          localStorage.setItem('auth-token', token);
+          if (!token) {
+            throw new Error('No token received from server');
+          }
+          
+          // Store token and user data with consistent key
+          localStorage.setItem(TOKEN_KEY, token);
+          localStorage.setItem('user', JSON.stringify(user));
+          
+          console.log('Token stored in localStorage:', !!localStorage.getItem(TOKEN_KEY));
           
           set({ 
             user, 
-            token,
-            isAuthenticated: true,
+            token, 
+            isAuthenticated: true, 
             isLoading: false 
           });
-
+          
           // Connect to socket
           socketService.connect(user._id);
+          
+          return { success: true };
         } catch (error: any) {
+          console.error('Login error:', error);
           const message = error.response?.data?.message || 'Login failed';
           set({ error: message, isLoading: false });
-          throw new Error(message);
+          return { success: false, error: message };
         }
       },
 
@@ -84,7 +101,9 @@ export const useAuthStore = create<AuthState>()(
           const response = await api.post('/auth/register', userData);
           const { token, user } = response.data;
           
-          localStorage.setItem('auth-token', token);
+          // Use consistent token key
+          localStorage.setItem(TOKEN_KEY, token);
+          localStorage.setItem('user', JSON.stringify(user));
           
           set({ 
             user, 
@@ -110,7 +129,9 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
-          localStorage.removeItem('auth-token');
+          // Clear consistent token key
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem('user');
           socketService.disconnect();
           
           set({ 
@@ -131,8 +152,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await api.put('/users/profile', updates);
           
+          const updatedUser = response.data.user;
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          
           set({
-            user: response.data.user,
+            user: updatedUser,
             isLoading: false
           });
         } catch (error: any) {
@@ -143,8 +167,11 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchUser: async () => {
-        const token = localStorage.getItem('auth-token');
-        if (!token) return;
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) {
+          set({ isAuthenticated: false, user: null, token: null });
+          return;
+        }
 
         set({ isLoading: true });
 
@@ -162,7 +189,9 @@ export const useAuthStore = create<AuthState>()(
           // Connect to socket
           socketService.connect(user._id);
         } catch (error) {
-          localStorage.removeItem('auth-token');
+          console.error('Fetch user error:', error);
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem('user');
           set({ 
             user: null, 
             token: null,
@@ -186,7 +215,7 @@ export const useAuthStore = create<AuthState>()(
 );
 
 // Initialize auth on app start
-const token = localStorage.getItem('auth-token');
+const token = localStorage.getItem(TOKEN_KEY);
 if (token) {
   useAuthStore.getState().fetchUser();
 }

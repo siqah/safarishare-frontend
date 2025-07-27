@@ -2,16 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useRideStore } from '../stores/rideStore';
 import RideCard from '../components/Rides/RideCard';
+import MessagingModal from '../components/messaging/MessagingModal';
 import { Car, Users, Clock, AlertCircle, MessageCircle, Check, X, Phone } from 'lucide-react';
-import api from '../lib/api';
 
 const MyRides: React.FC = () => {
   const { user } = useAuthStore();
-  const { getRidesByDriver, error, clearError } = useRideStore();
-  const [myRides, setMyRides] = useState<any[]>([]);
-  const [bookingRequests, setBookingRequests] = useState<any[]>([]);
-  const [confirmedBookings, setConfirmedBookings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    myRides, 
+    bookingRequests, 
+    confirmedBookings, 
+    isLoading, 
+    error, 
+    getRidesByDriver, 
+    getBookingRequests, 
+    getConfirmedBookings,
+    acceptBooking,
+    declineBooking,
+    clearError 
+  } = useRideStore();
+  
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showMessaging, setShowMessaging] = useState(false);
 
@@ -19,29 +28,17 @@ const MyRides: React.FC = () => {
     const fetchData = async () => {
       if (!user) return;
       
-      setIsLoading(true);
       clearError();
       
       try {
-        // Fetch your rides
-        const rides = await getRidesByDriver(user._id);
-        setMyRides(Array.isArray(rides) ? rides : []);
-
-        // Fetch booking requests for your rides
-        const requestsResponse = await api.get('/bookings/requests');
-        setBookingRequests(requestsResponse.data.requests || []);
-
-        // Fetch confirmed bookings for your rides
-        const confirmedResponse = await api.get('/bookings/ride-bookings');
-        setConfirmedBookings(confirmedResponse.data.bookings || []);
-
+        // Fetch all data in parallel
+        await Promise.all([
+          getRidesByDriver(user._id),
+          getBookingRequests(),
+          getConfirmedBookings()
+        ]);
       } catch (error) {
         console.error('Error fetching data:', error);
-        setMyRides([]);
-        setBookingRequests([]);
-        setConfirmedBookings([]);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -50,28 +47,20 @@ const MyRides: React.FC = () => {
 
   const handleAcceptBooking = async (bookingId: string) => {
     try {
-      await api.post(`/bookings/${bookingId}/accept`);
+      await acceptBooking(bookingId);
       alert('Booking accepted! The passenger will be notified to make payment.');
-      
-      // Refresh data
-      const requestsResponse = await api.get('/bookings/requests');
-      setBookingRequests(requestsResponse.data.requests || []);
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to accept booking');
+      alert(error.message || 'Failed to accept booking');
     }
   };
 
   const handleDeclineBooking = async (bookingId: string) => {
     const reason = prompt('Reason for declining (optional):');
     try {
-      await api.post(`/bookings/${bookingId}/decline`, { reason });
+      await declineBooking(bookingId, reason || undefined);
       alert('Booking declined');
-      
-      // Refresh data
-      const requestsResponse = await api.get('/bookings/requests');
-      setBookingRequests(requestsResponse.data.requests || []);
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to decline booking');
+      alert(error.message || 'Failed to decline booking');
     }
   };
 
@@ -79,6 +68,18 @@ const MyRides: React.FC = () => {
     setSelectedBooking(booking);
     setShowMessaging(true);
   };
+
+  // Debug logs
+  useEffect(() => {
+    console.log('MyRides Debug:', {
+      user: user?._id,
+      myRides: myRides.length,
+      bookingRequests: bookingRequests.length,
+      confirmedBookings: confirmedBookings.length,
+      isLoading,
+      error
+    });
+  }, [user, myRides, bookingRequests, confirmedBookings, isLoading, error]);
 
   if (!user) {
     return (
@@ -237,7 +238,7 @@ const MyRides: React.FC = () => {
           </div>
         )}
 
-        {/* Confirmed Bookings (Passengers you can message) */}
+        {/* Confirmed Bookings */}
         {confirmedBookings.length > 0 && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Confirmed Passengers</h2>
@@ -312,9 +313,9 @@ const MyRides: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">My Offered Rides</h2>
           {myRides.length > 0 ? (
             <div className="grid grid-cols-1 gap-6">
-              {myRides.map((ride, index) => (
+              {myRides.map((ride) => (
                 <RideCard 
-                  key={ride?.id || ride?._id || `ride-${index}`} 
+                  key={ride._id} 
                   ride={ride} 
                   showActions={false} 
                 />
@@ -336,7 +337,7 @@ const MyRides: React.FC = () => {
         </div>
       </div>
 
-      {/* Messaging Modal */}
+      {/* Messaging Modal - Keep your existing implementation */}
       {showMessaging && selectedBooking && (
         <MessagingModal
           booking={selectedBooking}
@@ -351,143 +352,6 @@ const MyRides: React.FC = () => {
   );
 };
 
-// Messaging Modal Component
-const MessagingModal: React.FC<{
-  booking: any;
-  currentUser: any;
-  onClose: () => void;
-}> = ({ booking, currentUser, onClose }) => {
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    // Fetch existing messages
-    fetchMessages();
-  }, []);
-
-  const fetchMessages = async () => {
-    try {
-      const response = await api.get(`/messages/conversation/${booking.passengerId._id}`);
-      setMessages(response.data.messages || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || sending) return;
-
-    setSending(true);
-    try {
-      const response = await api.post('/messages', {
-        receiverId: booking.passengerId._id,
-        content: newMessage.trim(),
-        bookingId: booking._id
-      });
-
-      setMessages(prev => [...prev, response.data.message]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Failed to send message');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-full max-w-2xl mx-4 h-[600px] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <div className="flex items-center space-x-3">
-            <img
-              src={booking.passengerId?.avatar || `https://ui-avatars.com/api/?name=${booking.passengerId?.firstName}+${booking.passengerId?.lastName}`}
-              alt={`${booking.passengerId?.firstName} ${booking.passengerId?.lastName}`}
-              className="w-10 h-10 rounded-full"
-            />
-            <div>
-              <h3 className="font-semibold">
-                {booking.passengerId?.firstName} {booking.passengerId?.lastName}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {booking.rideId?.fromLocation} → {booking.rideId?.toLocation}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No messages yet. Start the conversation!</p>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={message._id || index}
-                className={`flex ${
-                  message.senderId === currentUser._id ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.senderId === currentUser._id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.senderId === currentUser._id ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {new Date(message.createdAt).toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Message Input */}
-        <div className="p-4 border-t">
-          <div className="flex space-x-2">
-            <textarea
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              rows={2}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!newMessage.trim() || sending}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sending ? 'Sending...' : 'Send'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Keep your existing MessagingModal component here...
 
 export default MyRides;
