@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, MapPin, Users, DollarSign, Star, MessageCircle, Navigation } from 'lucide-react';
+import { Clock, MapPin, Users, Star, MessageCircle, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { Ride } from '../../stores/rideStore';
 import PaymentModal from '../Payment/PaymentModal';
