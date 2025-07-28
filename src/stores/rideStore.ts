@@ -173,25 +173,38 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  acceptBooking: async (bookingId) => {
-    set({ isLoading: true, error: null });
+  acceptBooking: async (bookingId: string) => {
+  set({ isLoading: true, error: null });
+  
+  try {
+    console.log('Accepting booking:', bookingId);
     
-    try {
-      const response = await api.post(`/bookings/${bookingId}/accept`);
-      
+    const response = await api.put(`/bookings/${bookingId}/accept`);
+    
+    if (response.data.success) {
+      // Update the booking requests by removing the accepted booking
       set(state => ({
-        bookingRequests: state.bookingRequests.filter(booking => booking._id !== bookingId),
+        bookingRequests: state.bookingRequests.filter(request => request._id !== bookingId),
+        // Add to confirmed bookings if it's not already there
+        confirmedBookings: [
+          ...state.confirmedBookings.filter(booking => booking._id !== bookingId),
+          response.data.booking
+        ],
         isLoading: false
       }));
       
-      // Refresh booking requests
-      get().getBookingRequests();
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to accept booking';
-      set({ error: message, isLoading: false });
-      throw new Error(message);
+      console.log('Booking accepted successfully');
+      return response.data;
     }
-  },
+    
+    throw new Error(response.data.message || 'Failed to accept booking');
+  } catch (error: any) {
+    console.error('Accept booking error:', error);
+    const message = error.response?.data?.message || 'Failed to accept booking';
+    set({ error: message, isLoading: false });
+    throw new Error(message);
+  }
+},
 
   declineBooking: async (bookingId, reason) => {
     set({ isLoading: true, error: null });
