@@ -53,7 +53,7 @@ api.interceptors.request.use(
     
     // Debug logging
     console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
-    console.log('🔗 Full URL:', config.baseURL + config.url);
+    console.log('🔗 Full URL:', `${config.baseURL ?? ''}${config.url ?? ''}`);
     console.log('📦 Data:', config.data);
     
     return config;
