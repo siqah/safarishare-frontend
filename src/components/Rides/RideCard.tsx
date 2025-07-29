@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Clock, MapPin, Users, Star, MessageCircle, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { Ride } from '../../stores/rideStore';
-import PaymentModal from '../Payment/PaymentModal';
 import RideMap from '../Map/RideMap';
 import  api  from '../../lib/api'; // Adjust the import based on your project structure
 import { useAuthStore } from '../../stores/authStore'; // Adjust the import based on your project structure
@@ -15,7 +14,6 @@ interface RideCardProps {
 }
 
 const RideCard: React.FC<RideCardProps> = ({ ride, onBook, onMessage, showActions = true }) => {
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState(1);
   const { user } = useAuthStore(); // Get the user context
@@ -244,15 +242,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onBook, onMessage, showAction
         </div>
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <PaymentModal
-          ride={ride}
-          seats={selectedSeats}
-          onClose={() => setShowPaymentModal(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+    
     </>
   );
 };

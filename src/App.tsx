@@ -7,7 +7,6 @@ import RegisterForm from './components/Auth/RegisterForm';
 import RideSearch from './components/Rides/RideSearch';
 import OfferRide from './components/Rides/OfferRide';
 import MyRides from './pages/MyRides';
-import PaymentSettings from './pages/PaymentSettings';
 import Profile from './pages/Profile';
 import Messages from './pages/Messages';
 import BookingRequests from './components/Bookings/BookingRequests';
@@ -31,10 +30,6 @@ function App() {
           <Route 
             path="my-rides" 
             element={isAuthenticated ? <MyRides /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="payment-settings" 
-            element={isAuthenticated ? <PaymentSettings /> : <Navigate to="/login" />} 
           />
           <Route 
             path="profile" 
