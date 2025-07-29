@@ -14,8 +14,7 @@ class SocketService {
     this.userId = userId || null;
     const token = localStorage.getItem('token');
     
-    // Use VITE_API_URL without /api for socket connection
-    const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
     
     console.log('Connecting to socket with:', {
       url: socketUrl,
