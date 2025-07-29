@@ -6,7 +6,7 @@ import { socketService } from '../lib/socket';
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'booking_request' | 'booking_accepted' | 'booking_declined' | 'booking_cancelled' | 'ride_reminder' | 'payment_success' | 'message_received' | 'driver_approved' | 'driver_rejected';
+  type: 'booking_request' | 'booking_accepted' | 'booking_declined' | 'booking_cancelled' | 'ride_reminder' | 'message_received' | 'driver_approved' | 'driver_rejected';
   title: string;
   message: string;
   data: any;

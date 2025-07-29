@@ -53,7 +53,7 @@ const MyRides: React.FC = () => {
     await acceptBooking(bookingId);
     
     // Show success message
-    alert('Booking accepted! The passenger will be notified to make payment.');
+    alert('Booking accepted! The passenger has been notified.');
     
     // Refresh the data to get updated lists
     if (user) {
@@ -289,7 +289,7 @@ const handleDeclineBooking = async (bookingId: string) => {
                               {booking.passengerId?.firstName} {booking.passengerId?.lastName}
                             </h3>
                             <p className="text-gray-600 text-sm">
-                              {booking.seatsBooked} seat(s) • KSh {booking.totalAmount} • Paid
+                              {booking.seatsBooked} seat(s) • KSh {booking.totalAmount}
                             </p>
                           </div>
                         </div>
@@ -306,13 +306,6 @@ const handleDeclineBooking = async (bookingId: string) => {
                             </div>
                           </div>
                         </div>
-                        
-                        {booking.mpesaReceiptNumber && (
-                          <div className="mt-2">
-                            <span className="font-medium text-gray-700">Receipt:</span>
-                            <p className="text-gray-600 text-xs">{booking.mpesaReceiptNumber}</p>
-                          </div>
-                        )}
                       </div>
 
                       <div className="flex space-x-2">

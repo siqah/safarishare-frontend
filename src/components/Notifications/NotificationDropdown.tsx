@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Car, MessageSquare, CreditCard, X, Trash2 } from 'lucide-react';
+import { Bell, Car, MessageSquare, X, Trash2 } from 'lucide-react';
 import { useNotificationStore, type Notification } from '../../stores/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -33,8 +33,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         return <Car className="w-4 h-4" />;
       case 'message_received':
         return <MessageSquare className="w-4 h-4" />;
-      case 'payment_success':
-        return <CreditCard className="w-4 h-4" />;
       case 'ride_reminder':
         return <Bell className="w-4 h-4" />;
       case 'driver_approved':
@@ -58,8 +56,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         return 'text-red-600 bg-red-100';
       case 'message_received':
         return 'text-purple-600 bg-purple-100';
-      case 'payment_success':
-        return 'text-green-600 bg-green-100';
       case 'ride_reminder':
         return 'text-yellow-600 bg-yellow-100';
       default:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Car, User, MessageSquare, LogOut, Bell, CreditCard, Menu, X } from 'lucide-react';
+import { Car, User, MessageSquare, LogOut, Bell, Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore, setupNotificationListener } from '../../stores/notificationStore';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
@@ -116,18 +116,6 @@ const Header: React.FC = () => {
                 <MessageSquare className="w-5 h-5" />
               </Link>
 
-              {/* Payment Settings */}
-              <Link
-                to="/payment-settings"
-                className={`p-2 transition-colors ${
-                  isActive('/payment-settings')
-                    ? 'text-blue-600'
-                    : 'text-gray-500 hover:text-blue-600'
-                }`}
-              >
-                <CreditCard className="w-5 h-5" />
-              </Link>
-
               {/* User Profile Dropdown */}
               <div className="relative">
                 <button
@@ -159,14 +147,6 @@ const Header: React.FC = () => {
                     >
                       <User className="w-4 h-4 mr-3" />
                       View Profile
-                    </Link>
-                    <Link
-                      to="/payment-settings"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <CreditCard className="w-4 h-4 mr-3" />
-                      Payment Settings
                     </Link>
                     <hr className="my-1" />
                     <button
