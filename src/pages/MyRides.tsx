@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useRideStore } from '../stores/rideStore';
+import { useAuth } from '@clerk/clerk-react';
 import RideCard from '../components/Rides/RideCard';
 import MessagingModal from '../components/messaging/MessagingModal';
 import { Car, Users, Clock, AlertCircle, MessageCircle, Check, X, Phone } from 'lucide-react';
@@ -8,6 +9,7 @@ import BecomeDriverButton from '../components/Driver/BecomeDriverButton';
 
 const MyRides: React.FC = () => {
   const { user } = useAuthStore();
+  const { getToken } = useAuth();
   const { 
     myRides, 
     bookingRequests, 
@@ -34,9 +36,9 @@ const MyRides: React.FC = () => {
       try {
         // Fetch all data in parallel
         await Promise.all([
-          getRidesByDriver(user._id),
-          getBookingRequests(),
-          getConfirmedBookings()
+          getRidesByDriver(user._id, getToken),
+          getBookingRequests(getToken),
+          getConfirmedBookings(getToken)
         ]);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -50,7 +52,7 @@ const MyRides: React.FC = () => {
   try {
     console.log('Handling accept booking for:', bookingId);
     
-    await acceptBooking(bookingId);
+    await acceptBooking(bookingId, getToken);
     
     // Show success message
     alert('Booking accepted! The passenger has been notified.');
@@ -58,8 +60,8 @@ const MyRides: React.FC = () => {
     // Refresh the data to get updated lists
     if (user) {
       await Promise.all([
-        getBookingRequests(),
-        getConfirmedBookings()
+        getBookingRequests(getToken),
+        getConfirmedBookings(getToken)
       ]);
     }
     
@@ -75,13 +77,13 @@ const handleDeclineBooking = async (bookingId: string) => {
   try {
     console.log('Handling decline booking for:', bookingId);
     
-    await declineBooking(bookingId, reason || undefined);
+    await declineBooking(bookingId, reason || undefined, getToken);
     
     alert('Booking declined');
     
     // Refresh the data to get updated lists
     if (user) {
-      await getBookingRequests();
+      await getBookingRequests(getToken);
     }
     
   } catch (error: any) {
