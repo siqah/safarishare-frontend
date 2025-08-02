@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Car, User, MessageSquare, LogOut, Bell, Menu, X } from 'lucide-react';
+import { useClerk } from '@clerk/clerk-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore, setupNotificationListener } from '../../stores/notificationStore';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
@@ -8,7 +9,8 @@ import NotificationDropdown from '../Notifications/NotificationDropdown';
 const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, isLoading } = useAuthStore();
+  const { signOut } = useClerk();
+  const { user } = useAuthStore();
   const { unreadCount, fetchNotifications } = useNotificationStore();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -27,7 +29,7 @@ const Header: React.FC = () => {
   const handleLogout = async () => {
     try {
       setShowUserMenu(false);
-      await logout();
+      await signOut();
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -151,11 +153,10 @@ const Header: React.FC = () => {
                     <hr className="my-1" />
                     <button
                       onClick={handleLogout}
-                      disabled={isLoading}
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                     >
                       <LogOut className="w-4 h-4 mr-3" />
-                      {isLoading ? 'Signing out...' : 'Sign Out'}
+                      Sign Out
                     </button>
                   </div>
                 )}
@@ -172,7 +173,7 @@ const Header: React.FC = () => {
           ) : (
             <div className="flex items-center space-x-4">
               <Link
-                to="/login"
+                to="/sign-in"
                 className="text-sm font-medium text-gray-700 hover:text-blue-600"
               >
                 Sign in
