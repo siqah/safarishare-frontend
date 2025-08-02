@@ -1,9 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { 
-  SignedIn, 
-  SignedOut, 
-  RedirectToSignIn
-} from '@clerk/clerk-react';
+import { SignedIn } from '@clerk/clerk-react';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import RideSearch from './components/Rides/RideSearch';
@@ -88,34 +84,16 @@ function App() {
           />
         </Route>
         
-        {/* Dashboard route - redirect to sign in if not authenticated */}
+        {/* Dashboard route - redirect to my-rides for authenticated users */}
         <Route
           path="/dashboard"
-          element={
-            <>
-              <SignedIn>
-                <Navigate to="/my-rides" replace />
-              </SignedIn>
-              <SignedOut>
-                <RedirectToSignIn />
-              </SignedOut>
-            </>
-          }
+          element={<Navigate to="/my-rides" replace />}
         />
         
-        {/* Catch all - redirect based on auth state */}
+        {/* Catch all - redirect to home */}
         <Route
           path="*"
-          element={
-            <>
-              <SignedIn>
-                <Navigate to="/dashboard" replace />
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/" replace />
-              </SignedOut>
-            </>
-          }
+          element={<Navigate to="/" replace />}
         />
       </Routes>
     </Router>
