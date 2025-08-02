@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '../lib/api';
+import { makeAuthenticatedRequest } from '../lib/api';
 
 export interface Ride {
   _id: string;
@@ -81,15 +81,15 @@ interface RideState {
   error: string | null;
   
   // Actions
-  createRide: (ride: any) => Promise<void>;
+  createRide: (ride: any, getToken?: () => Promise<string | null>) => Promise<void>;
   searchRides: (filters: Partial<RideState['searchFilters']>) => Promise<void>;
-  bookRide: (rideId: string, seats: number, passengerId: string, message?: string) => Promise<void>;
-  acceptBooking: (bookingId: string) => Promise<void>;
-  declineBooking: (bookingId: string, reason?: string) => Promise<void>;
-  getRidesByDriver: (driverId: string) => Promise<Ride[]>;
-  getBookingsByPassenger: (passengerId: string) => Promise<BookingRequest[]>;
-  getBookingRequests: () => Promise<BookingRequest[]>;
-  getConfirmedBookings: () => Promise<BookingRequest[]>;
+  bookRide: (rideId: string, seats: number, message?: string, getToken?: () => Promise<string | null>) => Promise<void>;
+  acceptBooking: (bookingId: string, getToken?: () => Promise<string | null>) => Promise<void>;
+  declineBooking: (bookingId: string, reason?: string, getToken?: () => Promise<string | null>) => Promise<void>;
+  getRidesByDriver: (driverId: string, getToken?: () => Promise<string | null>) => Promise<Ride[]>;
+  getBookingsByPassenger: (getToken?: () => Promise<string | null>) => Promise<BookingRequest[]>;
+  getBookingRequests: (getToken?: () => Promise<string | null>) => Promise<BookingRequest[]>;
+  getConfirmedBookings: (getToken?: () => Promise<string | null>) => Promise<BookingRequest[]>;
   fetchRides: () => Promise<void>;
   clearError: () => void;
 }
@@ -108,11 +108,11 @@ export const useRideStore = create<RideState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  createRide: async (rideData) => {
+  createRide: async (rideData, getToken) => {
     set({ isLoading: true, error: null });
     
     try {
-      const response = await api.post('/rides', rideData);
+      const response = await makeAuthenticatedRequest('post', '/rides', rideData, getToken);
       const newRide = response.data.ride;
       
       set(state => ({ 
@@ -138,7 +138,7 @@ export const useRideStore = create<RideState>((set, get) => ({
       if (filters.maxPrice) params.append('maxPrice', filters.maxPrice.toString());
       if (filters.minSeats) params.append('minSeats', filters.minSeats.toString());
       
-      const response = await api.get(`/rides/search?${params.toString()}`);
+      const response = await makeAuthenticatedRequest('get', `/rides/search?${params.toString()}`);
       
       set({ 
         searchResults: response.data.rides, 
@@ -150,15 +150,15 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  bookRide: async (rideId, seatsBooked, passengerId, message) => {
+  bookRide: async (rideId, seatsBooked, message, getToken) => {
     set({ isLoading: true, error: null });
     
     try {
-      const response = await api.post('/bookings', {
+      const response = await makeAuthenticatedRequest('post', '/bookings', {
         rideId,
         seatsBooked,
         message
-      });
+      }, getToken);
       
       const newBooking = response.data.booking;
       
@@ -173,44 +173,44 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  acceptBooking: async (bookingId: string) => {
-  set({ isLoading: true, error: null });
-  
-  try {
-    console.log('Accepting booking:', bookingId);
-    
-    const response = await api.put(`/bookings/${bookingId}/accept`);
-    
-    if (response.data.success) {
-      // Update the booking requests by removing the accepted booking
-      set(state => ({
-        bookingRequests: state.bookingRequests.filter(request => request._id !== bookingId),
-        // Add to confirmed bookings if it's not already there
-        confirmedBookings: [
-          ...state.confirmedBookings.filter(booking => booking._id !== bookingId),
-          response.data.booking
-        ],
-        isLoading: false
-      }));
-      
-      console.log('Booking accepted successfully');
-      return response.data;
-    }
-    
-    throw new Error(response.data.message || 'Failed to accept booking');
-  } catch (error: any) {
-    console.error('Accept booking error:', error);
-    const message = error.response?.data?.message || 'Failed to accept booking';
-    set({ error: message, isLoading: false });
-    throw new Error(message);
-  }
-},
-
-  declineBooking: async (bookingId, reason) => {
+  acceptBooking: async (bookingId: string, getToken) => {
     set({ isLoading: true, error: null });
     
     try {
-      const response = await api.post(`/bookings/${bookingId}/decline`, { reason });
+      console.log('Accepting booking:', bookingId);
+      
+      const response = await makeAuthenticatedRequest('put', `/bookings/${bookingId}/accept`, {}, getToken);
+      
+      if (response.data.success) {
+        // Update the booking requests by removing the accepted booking
+        set(state => ({
+          bookingRequests: state.bookingRequests.filter(request => request._id !== bookingId),
+          // Add to confirmed bookings if it's not already there
+          confirmedBookings: [
+            ...state.confirmedBookings.filter(booking => booking._id !== bookingId),
+            response.data.booking
+          ],
+          isLoading: false
+        }));
+        
+        console.log('Booking accepted successfully');
+        return response.data;
+      }
+      
+      throw new Error(response.data.message || 'Failed to accept booking');
+    } catch (error: any) {
+      console.error('Accept booking error:', error);
+      const message = error.response?.data?.message || 'Failed to accept booking';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  declineBooking: async (bookingId, reason, getToken) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      await makeAuthenticatedRequest('post', `/bookings/${bookingId}/decline`, { reason }, getToken);
       
       set(state => ({
         bookingRequests: state.bookingRequests.filter(booking => booking._id !== bookingId),
@@ -218,7 +218,7 @@ export const useRideStore = create<RideState>((set, get) => ({
       }));
       
       // Refresh booking requests
-      get().getBookingRequests();
+      get().getBookingRequests(getToken);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to decline booking';
       set({ error: message, isLoading: false });
@@ -226,10 +226,10 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  getRidesByDriver: async (driverId) => {
+  getRidesByDriver: async (driverId, getToken) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get(`/rides/driver/${driverId}`);
+      const response = await makeAuthenticatedRequest('get', `/rides/driver/${driverId}`, undefined, getToken);
       const rides = response.data.rides || [];
       set({ myRides: rides, isLoading: false });
       return rides;
@@ -240,9 +240,9 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  getBookingsByPassenger: async (passengerId) => {
+  getBookingsByPassenger: async (getToken) => {
     try {
-      const response = await api.get('/bookings/my-bookings');
+      const response = await makeAuthenticatedRequest('get', '/bookings/my-bookings', undefined, getToken);
       return response.data.bookings || [];
     } catch (error: any) {
       const message = error.response?.data?.message || 'Failed to get bookings';
@@ -251,10 +251,10 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  getBookingRequests: async () => {
+  getBookingRequests: async (getToken) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/bookings/requests');
+      const response = await makeAuthenticatedRequest('get', '/bookings/requests', undefined, getToken);
       const requests = response.data.requests || [];
       set({ bookingRequests: requests, isLoading: false });
       return requests;
@@ -265,10 +265,10 @@ export const useRideStore = create<RideState>((set, get) => ({
     }
   },
 
-  getConfirmedBookings: async () => {
+  getConfirmedBookings: async (getToken) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/bookings/ride-bookings');
+      const response = await makeAuthenticatedRequest('get', '/bookings/ride-bookings', undefined, getToken);
       const bookings = response.data.bookings || [];
       set({ confirmedBookings: bookings, isLoading: false });
       return bookings;
@@ -283,7 +283,7 @@ export const useRideStore = create<RideState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const response = await api.get('/rides/search');
+      const response = await makeAuthenticatedRequest('get', '/rides/search');
       
       set({ 
         rides: response.data.rides, 

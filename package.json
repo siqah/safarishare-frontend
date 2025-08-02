@@ -4,13 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host --port 5173",
+    "dev:open": "vite --host --port 5173 --open",
+    "dev:debug": "vite --host --port 5173 --debug",
     "build": "vite build",
+    "build:prod": "vite build --mode production",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "npm run dev"
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview --host --port 4173",
+    "preview:prod": "vite preview --host --port 4173 --mode production",
+    "start": "npm run dev",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.38.1",
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.6.2",
     "date-fns": "^4.1.0",

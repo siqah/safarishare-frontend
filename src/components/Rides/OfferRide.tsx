@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { MapPin, Calendar, Clock, DollarSign, Users, Car, MessageSquare, AlertCircle } from 'lucide-react';
 import { useRideStore } from '../../stores/rideStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '@clerk/clerk-react';
+import { makeAuthenticatedRequest } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 const OfferRide: React.FC = () => {
-  const { createRide, isLoading, error, clearError } = useRideStore();
+  const { clearError, isLoading, error } = useRideStore();
   const { user } = useAuthStore();
+  const { getToken } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     from: '',
@@ -41,7 +44,7 @@ const OfferRide: React.FC = () => {
     }
 
     try {
-      await createRide({
+      const rideData = {
         fromLocation: formData.from,
         toLocation: formData.to,
         departureDate: formData.date,
@@ -53,12 +56,18 @@ const OfferRide: React.FC = () => {
         waypoints: formData.waypoints ? formData.waypoints.split(',').map(w => w.trim()) : [],
         vehicle: formData.vehicle,
         preferences: formData.preferences,
-      });
+      };
+
+      const response = await makeAuthenticatedRequest('post', '/rides', rideData, getToken);
       
-      alert('Ride offer created successfully!');
-      navigate('/my-rides');
-    } catch (error) {
-      // Error is handled by the store
+      if (response.data.success) {
+        alert('Ride offer created successfully!');
+        navigate('/my-rides');
+      }
+    } catch (error: any) {
+      console.error('Create ride error:', error);
+      const message = error.response?.data?.message || 'Failed to create ride';
+      alert(message);
     }
   };
 

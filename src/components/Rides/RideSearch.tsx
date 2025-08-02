@@ -79,7 +79,7 @@ const RideSearch: React.FC = () => {
 
     try {
       const seats = 1; // Default to 1 seat
-      await bookRide(rideId, seats, user._id, 'Looking forward to the ride!');
+      await bookRide(rideId, seats, user._id, async () => 'Looking forward to the ride!');
       alert('Booking request sent! The driver will review your request.');
     } catch (error) {
       // Error is handled by the store
@@ -280,7 +280,6 @@ const RideSearch: React.FC = () => {
               <RideCard
                 key={ride._id}
                 ride={ride}
-                onBook={handleBookRide}
                 onMessage={handleMessage}
               />
             ))}

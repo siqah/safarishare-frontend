@@ -1,9 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './stores/authStore';
+import { 
+  SignedIn, 
+  SignedOut, 
+  RedirectToSignIn
+} from '@clerk/clerk-react';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
-import LoginForm from './components/Auth/LoginForm';
-import RegisterForm from './components/Auth/RegisterForm';
 import RideSearch from './components/Rides/RideSearch';
 import OfferRide from './components/Rides/OfferRide';
 import MyRides from './pages/MyRides';
@@ -12,36 +14,109 @@ import Messages from './pages/Messages';
 import BookingRequests from './components/Bookings/BookingRequests';
 import MyBookings from './components/Bookings/MyBookings';
 
-function App() {
-  const { isAuthenticated } = useAuthStore();
+// Import Clerk auth pages
+import SignInPage from './pages/auth/SignInPage';
+import SignUpPage from './pages/auth/SignUpPage';
 
+function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/register" element={<RegisterForm />} />
+        {/* Auth routes */}
+        <Route path="/sign-in/*" element={<SignInPage />} />
+        <Route path="/sign-up/*" element={<SignUpPage />} />
+        
+        {/* Legacy redirects for old bookmarks */}
+        <Route path="/login" element={<Navigate to="/sign-in" replace />} />
+        <Route path="/register" element={<Navigate to="/sign-up" replace />} />
+        <Route path="/forgot-password" element={<Navigate to="/sign-in" replace />} />
+        <Route path="/reset-password" element={<Navigate to="/sign-in" replace />} />
+        
+        {/* App routes with layout */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="search" element={<RideSearch />} />
+          
+          {/* Protected routes */}
           <Route 
             path="offer" 
-            element={isAuthenticated ? <OfferRide /> : <Navigate to="/login" />} 
+            element={
+              <SignedIn>
+                <OfferRide />
+              </SignedIn>
+            } 
           />
           <Route 
             path="my-rides" 
-            element={isAuthenticated ? <MyRides /> : <Navigate to="/login" />} 
+            element={
+              <SignedIn>
+                <MyRides />
+              </SignedIn>
+            } 
           />
           <Route 
             path="profile" 
-            element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} 
+            element={
+              <SignedIn>
+                <Profile />
+              </SignedIn>
+            } 
           />
           <Route 
             path="messages" 
-            element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} 
+            element={
+              <SignedIn>
+                <Messages />
+              </SignedIn>
+            } 
           />
-          <Route path="/booking-requests" element={<BookingRequests />} />
-          <Route path="/my-bookings" element={<MyBookings />} />
+          <Route 
+            path="booking-requests" 
+            element={
+              <SignedIn>
+                <BookingRequests />
+              </SignedIn>
+            } 
+          />
+          <Route 
+            path="my-bookings" 
+            element={
+              <SignedIn>
+                <MyBookings />
+              </SignedIn>
+            } 
+          />
         </Route>
+        
+        {/* Dashboard route - redirect to sign in if not authenticated */}
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <SignedIn>
+                <Navigate to="/my-rides" replace />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
+        
+        {/* Catch all - redirect based on auth state */}
+        <Route
+          path="*"
+          element={
+            <>
+              <SignedIn>
+                <Navigate to="/dashboard" replace />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" replace />
+              </SignedOut>
+            </>
+          }
+        />
       </Routes>
     </Router>
   );

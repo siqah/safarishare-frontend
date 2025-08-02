@@ -3,20 +3,21 @@ import { Clock, MapPin, Users, Star, MessageCircle, Navigation } from 'lucide-re
 import { format } from 'date-fns';
 import { Ride } from '../../stores/rideStore';
 import RideMap from '../Map/RideMap';
-import  api  from '../../lib/api'; // Adjust the import based on your project structure
-import { useAuthStore } from '../../stores/authStore'; // Adjust the import based on your project structure
+import { makeAuthenticatedRequest } from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '@clerk/clerk-react';
 
 interface RideCardProps {
   ride: Ride;
-  onBook?: (rideId: string) => void;
   onMessage?: (driverId: string) => void;
   showActions?: boolean;
 }
 
-const RideCard: React.FC<RideCardProps> = ({ ride, onBook, onMessage, showActions = true }) => {
+const RideCard: React.FC<RideCardProps> = ({ ride, onMessage, showActions = true }) => {
   const [showMap, setShowMap] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState(1);
-  const { user } = useAuthStore(); // Get the user context
+  const { user } = useAuthStore();
+  const { getToken } = useAuth();
 
   // Handle both driver and driverId properties
   const driver = ride.driverId || {};
@@ -51,11 +52,11 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onBook, onMessage, showAction
     }
 
     try {
-      const response = await api.post('/bookings', {
+      await makeAuthenticatedRequest('post', '/bookings', {
         rideId: ride._id,
         seatsBooked: selectedSeats,
         message: 'Looking forward to the ride!'
-      });
+      }, getToken);
 
       alert('Booking request sent! The driver will review your request.');
       // Optionally redirect to bookings page
@@ -74,10 +75,6 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onBook, onMessage, showAction
   const totalSeats = ride.totalSeats || 0;
   const preferences = ride.preferences || {};
   const vehicle = ride.vehicle || {};
-
-  function handlePaymentSuccess(): void {
-    throw new Error('Function not implemented.');
-  }
 
   return (
     <>

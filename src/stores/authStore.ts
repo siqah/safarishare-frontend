@@ -5,6 +5,7 @@ import { socketService } from '../lib/socket';
 
 export interface User {
   _id: string;
+  clerkId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -26,120 +27,50 @@ export interface User {
 
 interface AuthState {
   user: User | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  token: string | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (userData: {
-    email: string;
-    password: string;
-    firstName: string;
-    lastName: string;
-  }) => Promise<void>;
-  logout: () => Promise<void>;
+ 
   updateProfile: (updates: Partial<User>) => Promise<void>;
   fetchUser: () => Promise<void>;
   clearError: () => void;
+  syncWithClerk: (clerkUser: any) => Promise<void>;
 }
-
-const TOKEN_KEY = 'token'; // Use consistent key
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      isAuthenticated: false,
       isLoading: false,
       error: null,
-      token: null,
 
-      login: async (email: string, password: string) => {
-        set({ isLoading: true, error: null });
-        
-        try {
-          console.log('Attempting login for:', email);
-          
-          const response = await api.post('/auth/login', { email, password });
-          console.log('Login response:', response.data);
-          
-          const { token, user } = response.data;
-          
-          if (!token) {
-            throw new Error('No token received from server');
-          }
-          
-          // Store token and user data with consistent key
-          localStorage.setItem(TOKEN_KEY, token);
-          localStorage.setItem('user', JSON.stringify(user));
-          
-          console.log('Token stored in localStorage:', !!localStorage.getItem(TOKEN_KEY));
-          
-          set({ 
-            user, 
-            token, 
-            isAuthenticated: true, 
-            isLoading: false 
-          });
-          
-          // Connect to socket
-          socketService.connect(user._id);
-          
-          return { success: true };
-        } catch (error: any) {
-          console.error('Login error:', error);
-          const message = error.response?.data?.message || 'Login failed';
-          set({ error: message, isLoading: false });
-          return { success: false, error: message };
-        }
-      },
-
-      register: async (userData) => {
-        set({ isLoading: true, error: null });
-        
-        try {
-          const response = await api.post('/auth/register', userData);
-          const { token, user } = response.data;
-          
-          // Use consistent token key
-          localStorage.setItem(TOKEN_KEY, token);
-          localStorage.setItem('user', JSON.stringify(user));
-          
-          set({ 
-            user, 
-            token,
-            isAuthenticated: true,
-            isLoading: false 
-          });
-
-          // Connect to socket
-          socketService.connect(user._id);
-        } catch (error: any) {
-          const message = error.response?.data?.message || 'Registration failed';
-          set({ error: message, isLoading: false });
-          throw new Error(message);
-        }
-      },
-
-      logout: async () => {
-        set({ isLoading: true });
-        
-        try {
-          await api.post('/auth/logout');
-        } catch (error) {
-          console.error('Logout error:', error);
-        } finally {
-          // Clear consistent token key
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem('user');
+      syncWithClerk: async (clerkUser: any) => {
+        if (!clerkUser) {
+          set({ user: null });
           socketService.disconnect();
-          
-          set({ 
-            user: null, 
-            token: null,
-            isAuthenticated: false, 
-            isLoading: false 
+          return;
+        }
+
+        set({ isLoading: true, error: null });
+
+        try {
+          // Sync user data with our backend
+          const response = await api.post('/users/sync', {
+            clerkId: clerkUser.id,
+            email: clerkUser.emailAddresses[0]?.emailAddress,
+            firstName: clerkUser.firstName,
+            lastName: clerkUser.lastName,
+            avatar: clerkUser.imageUrl,
           });
+
+          const user = response.data.user;
+          set({ user, isLoading: false });
+
+          // Connect to socket
+          socketService.connect(user._id);
+        } catch (error: any) {
+          console.error('Sync with Clerk error:', error);
+          const message = error.response?.data?.message || 'Failed to sync user data';
+          set({ error: message, isLoading: false });
         }
       },
 
@@ -153,7 +84,6 @@ export const useAuthStore = create<AuthState>()(
           const response = await api.put('/users/profile', updates);
           
           const updatedUser = response.data.user;
-          localStorage.setItem('user', JSON.stringify(updatedUser));
           
           set({
             user: updatedUser,
@@ -167,22 +97,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchUser: async () => {
-        const token = localStorage.getItem(TOKEN_KEY);
-        if (!token) {
-          set({ isAuthenticated: false, user: null, token: null });
-          return;
-        }
-
         set({ isLoading: true });
 
         try {
-          const response = await api.get('/auth/me');
+          const response = await api.get('/users/profile');
           const { user } = response.data;
           
           set({ 
-            user, 
-            token,
-            isAuthenticated: true,
+            user,
             isLoading: false 
           });
 
@@ -190,12 +112,8 @@ export const useAuthStore = create<AuthState>()(
           socketService.connect(user._id);
         } catch (error) {
           console.error('Fetch user error:', error);
-          localStorage.removeItem(TOKEN_KEY);
-          localStorage.removeItem('user');
           set({ 
-            user: null, 
-            token: null,
-            isAuthenticated: false, 
+            user: null,
             isLoading: false 
           });
         }
@@ -206,16 +124,8 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ 
-        token: state.token,
-        user: state.user, 
-        isAuthenticated: state.isAuthenticated 
+        user: state.user
       }),
     }
   )
 );
-
-// Initialize auth on app start
-const token = localStorage.getItem(TOKEN_KEY);
-if (token) {
-  useAuthStore.getState().fetchUser();
-}

@@ -1,12 +1,23 @@
 import axios from 'axios';
 
-const TOKEN_KEY = 'token';
+// Development settings
+const isDevelopment = import.meta.env.DEV;
+const isDebugEnabled = import.meta.env.VITE_DEBUG_API === 'true';
+
+// Enhanced logging for development
+const log = (...args: any[]) => {
+  if (isDevelopment && isDebugEnabled) {
+    console.log('🔍 API Debug:', ...args);
+  }
+};
 
 // Only log in development
-if (import.meta.env.DEV) {
-  console.log('🔍 Environment Debug:');
-  console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-  console.log('MODE:', import.meta.env.MODE);
+if (isDevelopment) {
+  log('Environment Debug:');
+  log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+  log('MODE:', import.meta.env.MODE);
+  log('DEV:', import.meta.env.DEV);
+  log('DEBUG_API:', import.meta.env.VITE_DEBUG_API);
 }
 
 // Get API URL and ensure no trailing slash
@@ -20,7 +31,7 @@ const getApiUrl = () => {
   
   // Fallback for development
   if (!apiUrl && import.meta.env.DEV) {
-    apiUrl = 'http://localhost:5001';
+    apiUrl = 'http://localhost:10000';
   }
   
   // Remove trailing slash
@@ -28,7 +39,7 @@ const getApiUrl = () => {
     apiUrl = apiUrl.replace(/\/$/, '');
   }
   
-  return apiUrl || 'http://localhost:5001';
+  return apiUrl || 'http://localhost:10000';
 };
 
 const API_BASE_URL = getApiUrl();
@@ -89,17 +100,15 @@ const api = axios.create({
 // Enhanced request interceptor - minimal logging in production
 api.interceptors.request.use(
   async (config) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // The token will be added manually in components using useAuth hook
+    // This approach is cleaner and avoids global state issues
     
     // Only log in development
     if (import.meta.env.DEV) {
       console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
       console.log('🔗 Full URL:', (config.baseURL ?? '') + (config.url ?? ''));
       console.log('📦 Data:', config.data);
+      console.log('🔑 Headers:', config.headers);
     }
     
     return config;
@@ -176,13 +185,54 @@ api.interceptors.response.use(
     
     // Handle auth errors
     if (error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // With Clerk, auth errors will be handled by Clerk's redirect
+      if (import.meta.env.DEV) {
+        console.log('🔒 Auth error detected, Clerk will handle redirect');
+      }
     }
     
     return Promise.reject(error);
   }
 );
 
+// Helper function to make authenticated API calls with Clerk token
+export const makeAuthenticatedRequest = async (
+  method: 'get' | 'post' | 'put' | 'delete',
+  url: string, 
+  data?: any,
+  getToken?: () => Promise<string | null>
+) => {
+  const config: any = {};
+  
+  // Add auth token if getToken function is provided
+  if (getToken) {
+    try {
+      const token = await getToken();
+      if (token) {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${token}`
+        };
+      }
+    } catch (error) {
+      console.error('Error getting auth token:', error);
+    }
+  }
+  
+  // Make the request based on method
+  switch (method) {
+    case 'get':
+      return api.get(url, config);
+    case 'post':
+      return api.post(url, data, config);
+    case 'put':
+      return api.put(url, data, config);
+    case 'delete':
+      return api.delete(url, config);
+    default:
+      throw new Error(`Unsupported method: ${method}`);
+  }
+};
+
+export { wakeUpBackend };
 export default api;
