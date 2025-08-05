@@ -23,8 +23,7 @@ export default function SignInPage() {
           path="/sign-in" 
           routing="path" 
           signUpUrl="/sign-up"
-          redirectUrl="/my-rides"
-          afterSignInUrl="/my-rides"
+          redirectUrl="/dashboard"
           appearance={{
             elements: {
               rootBox: "mx-auto",

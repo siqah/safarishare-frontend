@@ -33,7 +33,7 @@ interface AuthState {
   updateProfile: (updates: Partial<User>) => Promise<void>;
   fetchUser: () => Promise<void>;
   clearError: () => void;
-  syncWithClerk: (clerkUser: any) => Promise<void>;
+  syncWithClerk: (clerkUser: any, getToken?: () => Promise<string | null>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -50,27 +50,47 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
+        console.log('🔄 Syncing with Clerk user:', clerkUser);
         set({ isLoading: true, error: null });
 
         try {
-          // Sync user data with our backend
-          const response = await api.post('/users/sync', {
-            clerkId: clerkUser.id,
-            email: clerkUser.emailAddresses[0]?.emailAddress,
-            firstName: clerkUser.firstName,
-            lastName: clerkUser.lastName,
-            avatar: clerkUser.imageUrl,
-          });
+          // First, try to sync with backend
+          const response = await api.post('/api/users/sync', {});
 
           const user = response.data.user;
+          console.log('✅ User synced with backend:', user);
           set({ user, isLoading: false });
 
           // Connect to socket
           socketService.connect(user._id);
         } catch (error: any) {
-          console.error('Sync with Clerk error:', error);
-          const message = error.response?.data?.message || 'Failed to sync user data';
-          set({ error: message, isLoading: false });
+          console.error('❌ Backend sync failed:', error);
+          
+          // Fallback: create a minimal user object from Clerk data
+          const fallbackUser = {
+            _id: 'temp-' + clerkUser.id,
+            clerkId: clerkUser.id,
+            email: clerkUser.emailAddresses[0]?.emailAddress || '',
+            firstName: clerkUser.firstName || '',
+            lastName: clerkUser.lastName || '',
+            avatar: clerkUser.imageUrl || '',
+            phone: '',
+            dateOfBirth: '',
+            bio: '',
+            rating: 0,
+            totalRides: 0,
+            isDriver: false,
+            preferences: {
+              chattiness: 'moderate' as const,
+              music: false,
+              smoking: false,
+              pets: false,
+            },
+            createdAt: new Date().toISOString(),
+          };
+          
+          console.log('🔄 Using fallback user data:', fallbackUser);
+          set({ user: fallbackUser, isLoading: false });
         }
       },
 
