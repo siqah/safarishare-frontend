@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useAuth, useUser } from '@clerk/clerk-react';
+import { useEffect } from 'react';
 import Layout from './components/Layout/Layout';
+import { ProtectedRoute, PublicOnlyRoute } from './components/Auth/AuthGuard';
+import { useAuthStore } from './stores/authStore';
 import Home from './pages/Home';
 import RideSearch from './components/Rides/RideSearch';
 import OfferRide from './components/Rides/OfferRide';
@@ -15,12 +18,55 @@ import SignInPage from './pages/auth/SignInPage';
 import SignUpPage from './pages/auth/SignUpPage';
 
 function App() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user: clerkUser } = useUser();
+  const { syncWithClerk } = useAuthStore();
+
+  // Sync with Clerk when authentication state changes
+  useEffect(() => {
+    if (isLoaded) {
+      if (isSignedIn && clerkUser) {
+        console.log('🔄 App: Syncing with Clerk user');
+        syncWithClerk(clerkUser);
+      } else if (!isSignedIn) {
+        console.log('🔄 App: Clearing user data (signed out)');
+        syncWithClerk(null);
+      }
+    }
+  }, [isLoaded, isSignedIn, clerkUser, syncWithClerk]);
+
+  // Show loading screen while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading SafariShare...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <Routes>
-        {/* Auth routes */}
-        <Route path="/sign-in/*" element={<SignInPage />} />
-        <Route path="/sign-up/*" element={<SignUpPage />} />
+        {/* Public-only routes (redirect if signed in) */}
+        <Route 
+          path="/sign-in/*" 
+          element={
+            <PublicOnlyRoute>
+              <SignInPage />
+            </PublicOnlyRoute>
+          } 
+        />
+        <Route 
+          path="/sign-up/*" 
+          element={
+            <PublicOnlyRoute>
+              <SignUpPage />
+            </PublicOnlyRoute>
+          } 
+        />
         
         {/* Legacy redirects for old bookmarks */}
         <Route path="/login" element={<Navigate to="/sign-in" replace />} />
@@ -30,6 +76,7 @@ function App() {
         
         {/* App routes with layout */}
         <Route path="/" element={<Layout />}>
+          {/* Public routes */}
           <Route index element={<Home />} />
           <Route path="search" element={<RideSearch />} />
           
@@ -37,49 +84,49 @@ function App() {
           <Route 
             path="offer" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <OfferRide />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
           <Route 
             path="my-rides" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <MyRides />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
           <Route 
             path="profile" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <Profile />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
           <Route 
             path="messages" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <Messages />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
           <Route 
             path="booking-requests" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <BookingRequests />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
           <Route 
             path="my-bookings" 
             element={
-              <SignedIn>
+              <ProtectedRoute>
                 <MyBookings />
-              </SignedIn>
+              </ProtectedRoute>
             } 
           />
         </Route>
@@ -88,21 +135,20 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <>
-              <SignedIn>
-                <Navigate to="/my-rides" replace />
-              </SignedIn>
-              <SignedOut>
-                <RedirectToSignIn />
-              </SignedOut>
-            </>
+            <ProtectedRoute fallback="/sign-in">
+              <Navigate to="/my-rides" replace />
+            </ProtectedRoute>
           }
         />
         
         {/* Legacy home route redirect */}
         <Route
           path="/home"
-          element={<Navigate to="/my-rides" replace />}
+          element={
+            <ProtectedRoute>
+              <Navigate to="/my-rides" replace />
+            </ProtectedRoute>
+          }
         />
         
         {/* Catch all - redirect based on auth status */}
