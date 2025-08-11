@@ -2,6 +2,7 @@ import React from 'react';
 import { Bell, Car, MessageSquare, X, Trash2 } from 'lucide-react';
 import { useNotificationStore, type Notification } from '../../stores/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@clerk/clerk-react';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { getToken } = useAuth();
   const {
     notifications,
     unreadCount,
@@ -65,7 +67,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
-      await markAsRead(notification._id);
+      await markAsRead(notification._id, getToken);
     }
     
     // Navigate to relevant page if actionUrl exists
@@ -75,16 +77,16 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   };
 
   const handleMarkAllAsRead = async () => {
-    await markAllAsRead();
+    await markAllAsRead(getToken);
   };
 
   const handleClearAll = async () => {
-    await clearAll();
+    await clearAll(getToken);
   };
 
   const handleDeleteNotification = async (notificationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await deleteNotification(notificationId);
+    await deleteNotification(notificationId, getToken);
   };
 
   return (

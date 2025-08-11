@@ -1,24 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Car, MessageSquare, Bell, Menu, X } from 'lucide-react';
 import { 
   SignedIn, 
   SignedOut, 
-  UserButton
+  UserButton,
+  useAuth
 } from '@clerk/clerk-react';
+import { useAuthStore } from '../../stores/authStore';
+import { useNotificationStore, setupNotificationListener } from '../../stores/notificationStore';
+import NotificationDropdown from '../Notifications/NotificationDropdown';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const { user } = useAuthStore();
+  const { getToken } = useAuth();
+  const { unreadCount, fetchNotifications } = useNotificationStore();
+
+  // Fetch notifications and set up real-time listener when user is available
+  useEffect(() => {
+    if (user) {
+      fetchNotifications(getToken);
+      setupNotificationListener(user._id, getToken);
+    }
+  }, [user, fetchNotifications, getToken]);
+
+  // Close menus on route change
+  useEffect(() => {
+    setShowNotifications(false);
+    setShowMobileMenu(false);
+  }, [location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const dashboardPath = user?.isDriver ? '/driver/dashboard' : '/rider/dashboard';
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to={user ? dashboardPath : '/'} className="flex items-center space-x-2">
             <div className="bg-blue-600 p-2 rounded-lg">
               <Car className="w-6 h-6 text-white" />
             </div>
@@ -39,26 +63,43 @@ const Header: React.FC = () => {
             </Link>
             
             <SignedIn>
-              <Link
-                to="/offer"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive('/offer')
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                }`}
-              >
-                Offer a Ride
-              </Link>
-              <Link
-                to="/my-rides"
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive('/my-rides')
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                }`}
-              >
-                My Rides
-              </Link>
+              {user?.isDriver ? (
+                <>
+                  <Link
+                    to="/offer"
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive('/offer')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Offer a Ride
+                  </Link>
+                  <Link
+                    to="/my-rides"
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive('/my-rides')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    My Rides
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/my-bookings"
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      isActive('/my-bookings')
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    My Bookings
+                  </Link>
+                </>
+              )}
             </SignedIn>
           </nav>
 
@@ -77,11 +118,26 @@ const Header: React.FC = () => {
                 <MessageSquare className="w-5 h-5" />
               </Link>
 
-              {/* Notifications */}
-              <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
-                <Bell className="w-5 h-5" />
-                {/* TODO: Add notification count badge */}
-              </button>
+              {/* Notifications with dropdown */}
+              <div className="relative">
+                <button 
+                  className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                  onClick={() => setShowNotifications((s) => !s)}
+                  aria-haspopup="menu"
+                  aria-expanded={showNotifications}
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                <NotificationDropdown
+                  isOpen={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                />
+              </div>
 
               {/* User Button from Clerk */}
               <UserButton 
@@ -137,28 +193,46 @@ const Header: React.FC = () => {
                 >
                   Search Rides
                 </Link>
-                <Link
-                  to="/offer"
-                  onClick={() => setShowMobileMenu(false)}
-                  className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive('/offer')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
-                >
-                  Offer a Ride
-                </Link>
-                <Link
-                  to="/my-rides"
-                  onClick={() => setShowMobileMenu(false)}
-                  className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive('/my-rides')
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
-                >
-                  My Rides
-                </Link>
+                {user?.isDriver ? (
+                  <>
+                    <Link
+                      to="/offer"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
+                        isActive('/offer')
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      Offer a Ride
+                    </Link>
+                    <Link
+                      to="/my-rides"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
+                        isActive('/my-rides')
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      My Rides
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/my-bookings"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
+                        isActive('/my-bookings')
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      My Bookings
+                    </Link>
+                  </>
+                )}
                 <Link
                   to="/messages"
                   onClick={() => setShowMobileMenu(false)}
@@ -171,7 +245,7 @@ const Header: React.FC = () => {
                   Messages
                 </Link>
                 <Link
-                  to="/profile"
+                  to={user?.isDriver ? '/driver/profile' : '/rider/profile'}
                   onClick={() => setShowMobileMenu(false)}
                   className={`block px-3 py-2 text-sm font-medium rounded-md ${
                     isActive('/profile')

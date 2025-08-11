@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../lib/api';
+import api, { makeAuthenticatedRequest } from '../lib/api';
 import { socketService } from '../lib/socket';
 
 export interface Notification {
@@ -22,11 +22,11 @@ interface NotificationState {
   error: string | null;
   
   // Actions
-  fetchNotifications: () => Promise<void>;
-  markAsRead: (notificationId: string) => Promise<void>;
-  markAllAsRead: () => Promise<void>;
-  deleteNotification: (notificationId: string) => Promise<void>;
-  clearAll: () => Promise<void>;
+  fetchNotifications: (getToken?: () => Promise<string | null>) => Promise<void>;
+  markAsRead: (notificationId: string, getToken?: () => Promise<string | null>) => Promise<void>;
+  markAllAsRead: (getToken?: () => Promise<string | null>) => Promise<void>;
+  deleteNotification: (notificationId: string, getToken?: () => Promise<string | null>) => Promise<void>;
+  clearAll: (getToken?: () => Promise<string | null>) => Promise<void>;
   addNotification: (notification: Notification) => void;
   updateUnreadCount: () => void;
   clearError: () => void;
@@ -40,7 +40,7 @@ export const useNotificationStore = create<NotificationState>()(
       isLoading: false,
       error: null,
 
-      fetchNotifications: async () => {
+      fetchNotifications: async (getToken) => {
         // Prevent multiple simultaneous requests
         const state = get();
         if (state.isLoading) {
@@ -53,8 +53,10 @@ export const useNotificationStore = create<NotificationState>()(
         try {
           console.log('Fetching notifications...');
           
-          const response = await api.get('/notifications');
-          const notifications = response.data.notifications || [];
+          const response = getToken
+            ? await makeAuthenticatedRequest('get', '/notifications', undefined, getToken)
+            : await api.get('/notifications');
+          const notifications = (response.data.notifications || []) as Notification[];
           
           const unreadCount = notifications.filter((n: Notification) => !n.read).length;
           
@@ -79,9 +81,13 @@ export const useNotificationStore = create<NotificationState>()(
         }
       },
 
-      markAsRead: async (notificationId: string) => {
+      markAsRead: async (notificationId: string, getToken) => {
         try {
-          await api.put(`/notifications/${notificationId}/read`);
+          if (getToken) {
+            await makeAuthenticatedRequest('put', `/notifications/${notificationId}/read`, undefined, getToken);
+          } else {
+            await api.put(`/notifications/${notificationId}/read`);
+          }
           
           set(state => ({
             notifications: state.notifications.map(n => 
@@ -94,9 +100,13 @@ export const useNotificationStore = create<NotificationState>()(
         }
       },
 
-      markAllAsRead: async () => {
+      markAllAsRead: async (getToken) => {
         try {
-          await api.put('/notifications/mark-all-read');
+          if (getToken) {
+            await makeAuthenticatedRequest('put', '/notifications/mark-all-read', undefined, getToken);
+          } else {
+            await api.put('/notifications/mark-all-read');
+          }
           
           set(state => ({
             notifications: state.notifications.map(n => ({ ...n, read: true })),
@@ -107,9 +117,13 @@ export const useNotificationStore = create<NotificationState>()(
         }
       },
 
-      deleteNotification: async (notificationId: string) => {
+      deleteNotification: async (notificationId: string, getToken) => {
         try {
-          await api.delete(`/notifications/${notificationId}`);
+          if (getToken) {
+            await makeAuthenticatedRequest('delete', `/notifications/${notificationId}`, undefined, getToken);
+          } else {
+            await api.delete(`/notifications/${notificationId}`);
+          }
           
           set(state => {
             const notification = state.notifications.find(n => n._id === notificationId);
@@ -125,11 +139,13 @@ export const useNotificationStore = create<NotificationState>()(
         }
       },
 
-      clearAll: async () => {
+      clearAll: async (getToken) => {
         try {
           console.log('Clearing all notifications...');
           
-          const response = await api.delete('/notifications/clear-all');
+          const response = getToken
+            ? await makeAuthenticatedRequest('delete', '/notifications/clear-all', undefined, getToken)
+            : await api.delete('/notifications/clear-all');
           
           if (response.data.success) {
             set({ 
@@ -157,7 +173,7 @@ export const useNotificationStore = create<NotificationState>()(
       addNotification: (notification: Notification) => {
         set(state => ({
           notifications: [notification, ...state.notifications],
-          unreadCount: state.unreadCount + 1
+          unreadCount: state.unreadCount + (notification.read ? 0 : 1)
         }));
       },
 
@@ -180,10 +196,11 @@ export const useNotificationStore = create<NotificationState>()(
 );
 
 // Setup real-time notification listener
-export const setupNotificationListener = (userId: string) => {
+export const setupNotificationListener = (userId: string, getToken?: () => Promise<string | null>) => {
   const socket = socketService.getSocket();
   if (!socket) return;
 
+  socket.off('new-notification');
   socket.on('new-notification', (data: { notification?: Notification; type?: string; title?: string; message?: string; bookingId?: string }) => {
     console.log('Real-time notification received:', data);
     
@@ -206,9 +223,9 @@ export const setupNotificationListener = (userId: string) => {
       useNotificationStore.getState().addNotification(notification);
     }
     
-    // Fetch fresh notifications from server
+    // Fetch fresh notifications from server using token if provided
     setTimeout(() => {
-      useNotificationStore.getState().fetchNotifications();
+      useNotificationStore.getState().fetchNotifications(getToken);
     }, 1000);
   });
 };

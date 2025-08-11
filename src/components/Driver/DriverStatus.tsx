@@ -2,12 +2,14 @@ import React, { useEffect } from 'react';
 import { Car, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useDriverStore } from '../../stores/driverStore';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@clerk/clerk-react';
 
 const DriverStatus: React.FC = () => {
   const { application, isLoading, getApplication } = useDriverStore();
+  const { getToken } = useAuth();
 
   useEffect(() => {
-    getApplication();
+    getApplication(() => getToken());
   }, []);
 
   if (isLoading) {

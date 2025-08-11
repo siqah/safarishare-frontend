@@ -31,9 +31,9 @@ interface DriverState {
   error: string | null;
   
   // Actions
-  submitApplication: (applicationData: Omit<DriverApplication, '_id' | 'userId' | 'status'>) => Promise<void>;
-  getApplication: () => Promise<void>;
-  updateApplication: (updates: Partial<DriverApplication>) => Promise<void>;
+  submitApplication: (applicationData: Omit<DriverApplication, '_id' | 'userId' | 'status'>, getToken?: () => Promise<string | null>) => Promise<void>;
+  getApplication: (getToken?: () => Promise<string | null>) => Promise<void>;
+  updateApplication: (updates: Partial<DriverApplication>, getToken?: () => Promise<string | null>) => Promise<void>;
   clearError: () => void;
 }
 
@@ -42,7 +42,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  submitApplication: async (applicationData) => {
+  submitApplication: async (applicationData, getToken) => {
     set({ isLoading: true, error: null });
     
     try {
@@ -66,9 +66,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         formData.append('insurance', applicationData.documents.insurance);
       }
 
+      const token = getToken ? await getToken() : null;
       const response = await api.post('/driver/apply', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
@@ -83,11 +85,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     }
   },
 
-  getApplication: async () => {
+  getApplication: async (getToken) => {
     set({ isLoading: true, error: null });
     
     try {
-      const response = await api.get('/driver/application');
+      const token = getToken ? await getToken() : null;
+      const response = await api.get('/driver/application', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       
       set({ 
         application: response.data.application,
@@ -104,14 +111,20 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     }
   },
 
-  updateApplication: async (updates) => {
+  updateApplication: async (updates, getToken) => {
     const { application } = get();
     if (!application?._id) return;
 
     set({ isLoading: true, error: null });
 
     try {
-      const response = await api.put(`/driver/application/${application._id}`, updates);
+      const token = getToken ? await getToken() : null;
+      const response = await api.put(`/driver/application/${application._id}`, updates, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       
       set({ 
         application: response.data.application,

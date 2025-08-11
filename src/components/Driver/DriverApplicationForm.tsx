@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Car, Upload, FileText, Calendar, User, X } from 'lucide-react';
+import { Car, Upload, FileText, User, X } from 'lucide-react';
 import { useDriverStore } from '../../stores/driverStore';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuth } from '@clerk/clerk-react';
 
 interface DriverApplicationFormProps {
   onClose: () => void;
@@ -10,7 +10,7 @@ interface DriverApplicationFormProps {
 
 const DriverApplicationForm: React.FC<DriverApplicationFormProps> = ({ onClose, onSuccess }) => {
   const { submitApplication, isLoading, error } = useDriverStore();
-  const { user } = useAuthStore();
+  const { getToken } = useAuth();
 
   const [formData, setFormData] = useState({
     licenseNumber: '',
@@ -105,7 +105,7 @@ const DriverApplicationForm: React.FC<DriverApplicationFormProps> = ({ onClose, 
     }
 
     try {
-      await submitApplication(formData as any);
+      await submitApplication(formData as any, () => getToken());
       alert('Application submitted successfully! We will review it within 24-48 hours.');
       onSuccess();
     } catch (error: any) {
@@ -296,7 +296,7 @@ const DriverApplicationForm: React.FC<DriverApplicationFormProps> = ({ onClose, 
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Color *</label>
+                <label className="block text.sm font-medium text-gray-700 mb-2">Color *</label>
                 <input
                   type="text"
                   name="vehicle.color"
@@ -309,7 +309,7 @@ const DriverApplicationForm: React.FC<DriverApplicationFormProps> = ({ onClose, 
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Plate Number *</label>
+                <label className="block text.sm font-medium text-gray-700 mb-2">Plate Number *</label>
                 <input
                   type="text"
                   name="vehicle.plateNumber"
