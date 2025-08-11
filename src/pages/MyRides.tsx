@@ -36,9 +36,9 @@ const MyRides: React.FC = () => {
       try {
         // Fetch all data in parallel
         await Promise.all([
-          getRidesByDriver(user._id, getToken),
-          getBookingRequests(getToken),
-          getConfirmedBookings(getToken)
+          getRidesByDriver(user._id, () => getToken()),
+          getBookingRequests(() => getToken()),
+          getConfirmedBookings(() => getToken())
         ]);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -52,7 +52,7 @@ const MyRides: React.FC = () => {
   try {
     console.log('Handling accept booking for:', bookingId);
     
-    await acceptBooking(bookingId, getToken);
+    await acceptBooking(bookingId, () => getToken());
     
     // Show success message
     alert('Booking accepted! The passenger has been notified.');
@@ -60,8 +60,8 @@ const MyRides: React.FC = () => {
     // Refresh the data to get updated lists
     if (user) {
       await Promise.all([
-        getBookingRequests(getToken),
-        getConfirmedBookings(getToken)
+        getBookingRequests(() => getToken()),
+        getConfirmedBookings(() => getToken())
       ]);
     }
     
@@ -77,13 +77,13 @@ const handleDeclineBooking = async (bookingId: string) => {
   try {
     console.log('Handling decline booking for:', bookingId);
     
-    await declineBooking(bookingId, reason || undefined, getToken);
+    await declineBooking(bookingId, reason || undefined, () => getToken());
     
     alert('Booking declined');
     
     // Refresh the data to get updated lists
     if (user) {
-      await getBookingRequests(getToken);
+      await getBookingRequests(() => getToken());
     }
     
   } catch (error: any) {

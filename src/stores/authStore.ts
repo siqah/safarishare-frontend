@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../lib/api';
+import api, { makeAuthenticatedRequest } from '../lib/api';
 import { socketService } from '../lib/socket';
 
 export interface User {
@@ -30,10 +30,11 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
  
-  updateProfile: (updates: Partial<User>) => Promise<void>;
-  fetchUser: () => Promise<void>;
+  updateProfile: (updates: Partial<User>, getToken?: () => Promise<string | null>) => Promise<void>;
+  fetchUser: (getToken?: () => Promise<string | null>) => Promise<void>;
   clearError: () => void;
   syncWithClerk: (clerkUser: any, getToken?: () => Promise<string | null>) => Promise<void>;
+  setAccountType: (isDriver: boolean, getToken?: () => Promise<string | null>) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -43,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
 
-      syncWithClerk: async (clerkUser: any) => {
+      syncWithClerk: async (clerkUser: any, getToken?: () => Promise<string | null>) => {
         if (!clerkUser) {
           set({ user: null });
           socketService.disconnect();
@@ -54,19 +55,16 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // First, try to sync with backend
-          const response = await api.post('/api/users/sync', {});
+          const response = await makeAuthenticatedRequest('post', '/clerkUsers/sync', {}, getToken);
 
-          const user = response.data.user;
+          const user = response.data.user as User;
           console.log('✅ User synced with backend:', user);
           set({ user, isLoading: false });
 
-          // Connect to socket
           socketService.connect(user._id);
         } catch (error: any) {
           console.error('❌ Backend sync failed:', error);
           
-          // Fallback: create a minimal user object from Clerk data
           const fallbackUser = {
             _id: 'temp-' + clerkUser.id,
             clerkId: clerkUser.id,
@@ -87,23 +85,40 @@ export const useAuthStore = create<AuthState>()(
               pets: false,
             },
             createdAt: new Date().toISOString(),
-          };
+          } as User;
           
           console.log('🔄 Using fallback user data:', fallbackUser);
           set({ user: fallbackUser, isLoading: false });
         }
       },
 
-      updateProfile: async (updates) => {
+      setAccountType: async (isDriver, getToken) => {
+        const current = get().user;
+        if (!current) return;
+        set({ isLoading: true, error: null });
+        try {
+          const response = await makeAuthenticatedRequest('put', '/clerkUsers/profile', { isDriver }, getToken);
+          const updatedUser = response.data.user as User;
+          set({ user: updatedUser, isLoading: false });
+        } catch (error: any) {
+          const message = error?.response?.data?.message || 'Failed to update account type';
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
+      },
+
+      updateProfile: async (updates, getToken) => {
         const { user } = get();
         if (!user) return;
 
         set({ isLoading: true, error: null });
 
         try {
-          const response = await api.put('/users/profile', updates);
+          const response = getToken
+            ? await makeAuthenticatedRequest('put', '/clerkUsers/profile', updates, getToken)
+            : await api.put('/clerkUsers/profile', updates);
           
-          const updatedUser = response.data.user;
+          const updatedUser = response.data.user as User;
           
           set({
             user: updatedUser,
@@ -116,19 +131,20 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      fetchUser: async () => {
+      fetchUser: async (getToken) => {
         set({ isLoading: true });
 
         try {
-          const response = await api.get('/users/profile');
-          const { user } = response.data;
+          const response = getToken
+            ? await makeAuthenticatedRequest('get', '/clerkUsers/profile', undefined, getToken)
+            : await api.get('/clerkUsers/profile');
+          const { user } = response.data as { user: User };
           
           set({ 
             user,
-            isLoading: false 
+            isLoading: false,
           });
 
-          // Connect to socket
           socketService.connect(user._id);
         } catch (error) {
           console.error('Fetch user error:', error);
@@ -144,7 +160,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ 
-        user: state.user
+        user: state.user,
       }),
     }
   )

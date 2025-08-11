@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Calendar, MapPin, Star, Car, Edit3, Save, X, Camera } from 'lucide-react';
+import { Mail, Phone, Calendar, Star, Car, Edit3, Save, X, Camera } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
+import { useAuth } from '@clerk/clerk-react';
 
 const Profile: React.FC = () => {
   const { user, updateProfile, isLoading } = useAuthStore();
+  const { getToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -22,6 +24,13 @@ const Profile: React.FC = () => {
     },
   });
 
+  // Strongly-typed preference toggle keys for boolean fields
+  const prefToggleOptions = [
+    { key: 'music' as const, label: 'Music allowed' },
+    { key: 'smoking' as const, label: 'Smoking allowed' },
+    { key: 'pets' as const, label: 'Pets allowed' },
+  ];
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -35,7 +44,7 @@ const Profile: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await updateProfile(formData);
+      await updateProfile(formData, () => getToken());
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);
@@ -281,15 +290,11 @@ const Profile: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 gap-3">
-                        {[
-                          { key: 'music', label: 'Music allowed' },
-                          { key: 'smoking', label: 'Smoking allowed' },
-                          { key: 'pets', label: 'Pets allowed' },
-                        ].map(({ key, label }) => (
+                        {prefToggleOptions.map(({ key, label }) => (
                           <label key={key} className="flex items-center">
                             <input
                               type="checkbox"
-                              checked={isEditing ? formData.preferences[key as keyof typeof formData.preferences] : user.preferences[key as keyof typeof user.preferences]}
+                              checked={isEditing ? formData.preferences[key] : user.preferences[key]}
                               onChange={(e) => isEditing && setFormData({
                                 ...formData,
                                 preferences: {

@@ -4,15 +4,17 @@ import { useAuthStore } from '../../stores/authStore';
 import { useDriverStore } from '../../stores/driverStore';
 import DriverApplicationForm from './DriverApplicationForm';
 import DriverStatus from './DriverStatus';
+import { useAuth } from '@clerk/clerk-react';
 
 const BecomeDriverButton: React.FC = () => {
   const { user } = useAuthStore();
   const { application, getApplication } = useDriverStore();
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const { getToken } = useAuth();
 
   useEffect(() => {
     if (user && !user.isDriver) {
-      getApplication();
+      getApplication(() => getToken());
     }
   }, [user]);
 
@@ -57,7 +59,7 @@ const BecomeDriverButton: React.FC = () => {
           onClose={() => setShowApplicationForm(false)}
           onSuccess={() => {
             setShowApplicationForm(false);
-            getApplication(); // Refresh to show status
+            getApplication(() => getToken()); // Refresh to show status
           }}
         />
       )}
