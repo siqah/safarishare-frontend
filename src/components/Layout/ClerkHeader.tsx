@@ -10,6 +10,7 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import { useNotificationStore, setupNotificationListener } from '../../stores/notificationStore';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
+import { socketService } from '../../lib/socket';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -18,6 +19,11 @@ const Header: React.FC = () => {
   const { user } = useAuthStore();
   const { getToken } = useAuth();
   const { unreadCount, fetchNotifications } = useNotificationStore();
+
+  // Provide token provider for sockets
+  useEffect(() => {
+    socketService.setTokenProvider(() => getToken());
+  }, [getToken]);
 
   // Fetch notifications and set up real-time listener when user is available
   useEffect(() => {
@@ -53,11 +59,10 @@ const Header: React.FC = () => {
           <nav className="hidden md:flex space-x-8">
             <Link
               to="/search"
-              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isActive('/search')
+              className={`${isActive('/search')
                   ? 'text-blue-600 bg-blue-50'
                   : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-              }`}
+                } px-3 py-2 text-sm font-medium rounded-md transition-colors`}
             >
               Search Rides
             </Link>
@@ -67,21 +72,19 @@ const Header: React.FC = () => {
                 <>
                   <Link
                     to="/offer"
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive('/offer')
+                    className={`${isActive('/offer')
                         ? 'text-blue-600 bg-blue-50'
                         : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                    }`}
+                      } px-3 py-2 text-sm font-medium rounded-md transition-colors`}
                   >
                     Offer a Ride
                   </Link>
                   <Link
                     to="/my-rides"
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive('/my-rides')
+                    className={`${isActive('/my-rides')
                         ? 'text-blue-600 bg-blue-50'
                         : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                    }`}
+                      } px-3 py-2 text-sm font-medium rounded-md transition-colors`}
                   >
                     My Rides
                   </Link>
@@ -90,16 +93,24 @@ const Header: React.FC = () => {
                 <>
                   <Link
                     to="/my-bookings"
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive('/my-bookings')
+                    className={`${isActive('/my-bookings')
                         ? 'text-blue-600 bg-blue-50'
                         : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                    }`}
+                      } px-3 py-2 text-sm font-medium rounded-md transition-colors`}
                   >
                     My Bookings
                   </Link>
                 </>
               )}
+              <Link
+                to="/settings"
+                className={`${isActive('/settings')
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                  } px-3 py-2 text-sm font-medium rounded-md transition-colors`}
+              >
+                Settings
+              </Link>
             </SignedIn>
           </nav>
 
@@ -109,11 +120,7 @@ const Header: React.FC = () => {
               {/* Messages */}
               <Link
                 to="/messages"
-                className={`p-2 transition-colors ${
-                  isActive('/messages')
-                    ? 'text-blue-600'
-                    : 'text-gray-500 hover:text-blue-600'
-                }`}
+                className={`${isActive('/messages') ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'} p-2 transition-colors`}
               >
                 <MessageSquare className="w-5 h-5" />
               </Link>
@@ -185,11 +192,10 @@ const Header: React.FC = () => {
                 <Link
                   to="/search"
                   onClick={() => setShowMobileMenu(false)}
-                  className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive('/search')
+                  className={`${isActive('/search')
                       ? 'text-blue-600 bg-blue-50'
                       : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
+                    } block px-3 py-2 text-sm font-medium rounded-md`}
                 >
                   Search Rides
                 </Link>
@@ -198,22 +204,20 @@ const Header: React.FC = () => {
                     <Link
                       to="/offer"
                       onClick={() => setShowMobileMenu(false)}
-                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                        isActive('/offer')
+                      className={`${isActive('/offer')
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      }`}
+                        } block px-3 py-2 text-sm font-medium rounded-md`}
                     >
                       Offer a Ride
                     </Link>
                     <Link
                       to="/my-rides"
                       onClick={() => setShowMobileMenu(false)}
-                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                        isActive('/my-rides')
+                      className={`${isActive('/my-rides')
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      }`}
+                        } block px-3 py-2 text-sm font-medium rounded-md`}
                     >
                       My Rides
                     </Link>
@@ -223,11 +227,10 @@ const Header: React.FC = () => {
                     <Link
                       to="/my-bookings"
                       onClick={() => setShowMobileMenu(false)}
-                      className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                        isActive('/my-bookings')
+                      className={`${isActive('/my-bookings')
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                      }`}
+                        } block px-3 py-2 text-sm font-medium rounded-md`}
                     >
                       My Bookings
                     </Link>
@@ -236,24 +239,32 @@ const Header: React.FC = () => {
                 <Link
                   to="/messages"
                   onClick={() => setShowMobileMenu(false)}
-                  className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive('/messages')
+                  className={`${isActive('/messages')
                       ? 'text-blue-600 bg-blue-50'
                       : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
+                    } block px-3 py-2 text-sm font-medium rounded-md`}
                 >
                   Messages
                 </Link>
                 <Link
                   to={user?.isDriver ? '/driver/profile' : '/rider/profile'}
                   onClick={() => setShowMobileMenu(false)}
-                  className={`block px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive('/profile')
+                  className={`${isActive('/profile')
                       ? 'text-blue-600 bg-blue-50'
                       : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
+                    } block px-3 py-2 text-sm font-medium rounded-md`}
                 >
                   Profile
+                </Link>
+                <Link
+                  to="/settings"
+                  onClick={() => setShowMobileMenu(false)}
+                  className={`${isActive('/settings')
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    } block px-3 py-2 text-sm font-medium rounded-md`}
+                >
+                  Settings
                 </Link>
               </div>
             </div>

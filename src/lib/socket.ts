@@ -5,14 +5,19 @@ class SocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private userId: string | null = null;
+  private tokenProvider: (() => Promise<string | null>) | null = null;
 
-  connect(userId?: string): Socket {
+  setTokenProvider(provider: () => Promise<string | null>) {
+    this.tokenProvider = provider;
+  }
+
+  async connect(userId?: string): Promise<Socket> {
     if (this.socket?.connected) {
       return this.socket;
     }
 
     this.userId = userId || null;
-    const token = localStorage.getItem('token');
+    const token = this.tokenProvider ? await this.tokenProvider() : localStorage.getItem('token');
     
     const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
     
@@ -23,9 +28,9 @@ class SocketService {
     });
 
     this.socket = io(socketUrl, {
-      auth: {
-        token,
-        userId: this.userId
+      auth: async (cb: any) => {
+        const freshToken = this.tokenProvider ? await this.tokenProvider() : token;
+        cb({ token: freshToken, userId: this.userId });
       },
       transports: ['websocket', 'polling'],
       timeout: 20000,

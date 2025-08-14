@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '../lib/api';
+import { makeAuthenticatedRequest } from '../lib/api';
 
 export interface DriverApplication {
   _id?: string;
@@ -14,11 +14,6 @@ export interface DriverApplication {
     plateNumber: string;
     seats: number;
   };
-  documents: {
-    license: File | string;
-    registration: File | string;
-    insurance: File | string;
-  };
   status: 'pending' | 'approved' | 'rejected';
   submittedAt?: string;
   reviewedAt?: string;
@@ -31,9 +26,9 @@ interface DriverState {
   error: string | null;
   
   // Actions
-  submitApplication: (applicationData: Omit<DriverApplication, '_id' | 'userId' | 'status'>, getToken?: () => Promise<string | null>) => Promise<void>;
-  getApplication: (getToken?: () => Promise<string | null>) => Promise<void>;
-  updateApplication: (updates: Partial<DriverApplication>, getToken?: () => Promise<string | null>) => Promise<void>;
+  submitApplication: (applicationData: Omit<DriverApplication, '_id' | 'userId' | 'status'>, getToken?: (options?: any) => Promise<string | null>) => Promise<void>;
+  getApplication: (getToken?: (options?: any) => Promise<string | null>) => Promise<void>;
+  updateApplication: (updates: Partial<DriverApplication>, getToken?: (options?: any) => Promise<string | null>) => Promise<void>;
   clearError: () => void;
 }
 
@@ -46,33 +41,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const formData = new FormData();
-      
-      // Add basic info
-      formData.append('licenseNumber', applicationData.licenseNumber);
-      formData.append('licenseExpiry', applicationData.licenseExpiry);
-      
-      // Add vehicle info
-      formData.append('vehicleInfo', JSON.stringify(applicationData.vehicleInfo));
-      
-      // Add documents
-      if (applicationData.documents.license instanceof File) {
-        formData.append('license', applicationData.documents.license);
-      }
-      if (applicationData.documents.registration instanceof File) {
-        formData.append('registration', applicationData.documents.registration);
-      }
-      if (applicationData.documents.insurance instanceof File) {
-        formData.append('insurance', applicationData.documents.insurance);
-      }
-
-      const token = getToken ? await getToken() : null;
-      const response = await api.post('/driver/apply', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const response = await makeAuthenticatedRequest('post', '/driver/apply', {
+        licenseNumber: applicationData.licenseNumber,
+        licenseExpiry: applicationData.licenseExpiry,
+        vehicleInfo: applicationData.vehicleInfo,
+      }, getToken);
 
       set({ 
         application: response.data.application,
@@ -89,12 +62,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const token = getToken ? await getToken() : null;
-      const response = await api.get('/driver/application', {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const response = await makeAuthenticatedRequest('get', '/driver/application', undefined, getToken);
       
       set({ 
         application: response.data.application,
@@ -118,13 +86,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const token = getToken ? await getToken() : null;
-      const response = await api.put(`/driver/application/${application._id}`, updates, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const response = await makeAuthenticatedRequest('put', `/driver/application/${application._id}`, updates, getToken);
       
       set({ 
         application: response.data.application,
