@@ -49,6 +49,9 @@ if (import.meta.env.DEV) {
   console.log('🔗 Using API URL:', API_BASE_URL);
 }
 
+// Preferred Clerk JWT template name (configurable)
+const CLERK_JWT_TEMPLATE = import.meta.env.VITE_CLERK_JWT_TEMPLATE || 'default';
+
 // Wake up function for Render cold starts
 const wakeUpBackend = async () => {
   const controller = new AbortController();
@@ -195,28 +198,43 @@ api.interceptors.response.use(
   }
 );
 
+// Helper to get a Clerk token using a JWT template when available
+async function getClerkToken(getToken?: (options?: any) => Promise<string | null>): Promise<string | null> {
+  if (!getToken) return null;
+  try {
+    // Prefer a JWT template token
+    const token = await (getToken as any)({ template: CLERK_JWT_TEMPLATE });
+    if (token) return token;
+  } catch (e) {
+    // continue to fallback
+  }
+  try {
+    // Fallback to default behavior
+    return await getToken();
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to make authenticated API calls with Clerk token
 export const makeAuthenticatedRequest = async (
   method: 'get' | 'post' | 'put' | 'delete',
   url: string, 
   data?: any,
-  getToken?: () => Promise<string | null>
+  getToken?: (options?: any) => Promise<string | null>
 ) => {
   const config: any = {};
   
   // Add auth token if getToken function is provided
-  if (getToken) {
-    try {
-      const token = await getToken();
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`
-        };
-      }
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-    }
+  const token = await getClerkToken(getToken);
+  if (token) {
+    config.headers = {
+      ...config.headers,
+      Authorization: `Bearer ${token}`,
+      // Send token in alternate header to improve compatibility with certain middlewares/proxies
+      'X-Clerk-Auth': token,
+      'X-Requested-With': 'XMLHttpRequest',
+    };
   }
   
   // Make the request based on method

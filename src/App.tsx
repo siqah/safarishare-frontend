@@ -11,6 +11,7 @@ import MyRides from './pages/MyRides';
 import Messages from './pages/Messages';
 import BookingRequests from './components/Bookings/BookingRequests';
 import MyBookings from './components/Bookings/MyBookings';
+import Settings from './pages/Settings';
 
 // Import Clerk auth pages
 import SignInPage from './pages/auth/SignInPage';
@@ -149,6 +150,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Messages />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

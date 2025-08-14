@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import BecomeDriverButton from '../../components/Driver/BecomeDriverButton';
 
 const RiderDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -11,11 +10,6 @@ const RiderDashboard: React.FC = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Rider Dashboard</h1>
         <p className="text-gray-600">Welcome {user?.firstName}! Find and manage your rides.</p>
-      </div>
-
-      {/* Become a Driver CTA and application flow (shows status if already applied) */}
-      <div className="mb-6">
-        <BecomeDriverButton />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
