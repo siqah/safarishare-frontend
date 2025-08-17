@@ -5,7 +5,6 @@ import { useAuth } from '@clerk/clerk-react';
 import RideCard from '../components/Rides/RideCard';
 import MessagingModal from '../components/messaging/MessagingModal';
 import { Car, Users, Clock, AlertCircle, MessageCircle, Check, X, Phone } from 'lucide-react';
-import BecomeDriverButton from '../components/Driver/BecomeDriverButton';
 
 const MyRides: React.FC = () => {
   const { user } = useAuthStore();
@@ -150,7 +149,6 @@ const handleDeclineBooking = async (bookingId: string) => {
 
         <div className="space-y-6">
           {/* Become Driver Section */}
-          <BecomeDriverButton />
           
           {/* Existing content */}
           {/* Stats Cards */}
