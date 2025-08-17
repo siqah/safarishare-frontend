@@ -97,7 +97,9 @@ export const useAuthStore = create<AuthState>()(
         if (!current) return;
         set({ isLoading: true, error: null });
         try {
-          const response = await makeAuthenticatedRequest('put', '/clerkUsers/profile', { isDriver }, getToken);
+          // Use new account role selection endpoint
+          const role = isDriver ? 'driver' : 'rider';
+          const response = await makeAuthenticatedRequest('post', '/account/select-role', { role }, getToken);
           const updatedUser = response.data.user as User;
           set({ user: updatedUser, isLoading: false });
         } catch (error: any) {
