@@ -5,7 +5,6 @@ import { Ride } from '../../stores/rideStore';
 import RideMap from '../Map/RideMap';
 import { makeAuthenticatedRequest } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
-import { useAuth } from '@clerk/clerk-react';
 
 interface RideCardProps {
   ride: Ride;
@@ -17,7 +16,6 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onMessage, showActions = true
   const [showMap, setShowMap] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState(1);
   const { user } = useAuthStore();
-  const { getToken } = useAuth();
 
   // Handle both driver and driverId properties
   const driver = ride.driverId || {};
@@ -56,7 +54,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onMessage, showActions = true
         rideId: ride._id,
         seatsBooked: selectedSeats,
         message: 'Looking forward to the ride!'
-      }, getToken);
+      });
 
       alert('Booking request sent! The driver will review your request.');
       // Optionally redirect to bookings page

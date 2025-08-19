@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
-import { MapPin, Calendar, Clock, DollarSign, Users, Car, MessageSquare, AlertCircle } from 'lucide-react';
+import { MapPin, Calendar, Clock, DollarSign, Users, MessageSquare, AlertCircle } from 'lucide-react';
 import { useRideStore } from '../../stores/rideStore';
 import { useAuthStore } from '../../stores/authStore';
-import { useAuth } from '@clerk/clerk-react';
 import { makeAuthenticatedRequest } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 const OfferRide: React.FC = () => {
   const { clearError, isLoading, error } = useRideStore();
   const { user } = useAuthStore();
-  const { getToken } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     from: '',
@@ -58,7 +56,7 @@ const OfferRide: React.FC = () => {
         preferences: formData.preferences,
       };
 
-      const response = await makeAuthenticatedRequest('post', '/rides', rideData, getToken);
+      const response = await makeAuthenticatedRequest('post', '/rides', rideData);
       
       if (response.data.success) {
         alert('Ride offer created successfully!');

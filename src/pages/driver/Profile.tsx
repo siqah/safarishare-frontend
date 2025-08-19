@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { useAuthStore } from '../../stores/authStore';
 
 const DriverProfile: React.FC = () => {
-  const { getToken } = useAuth();
   const { user: appUser, updateProfile } = useAuthStore();
   const [bio, setBio] = useState(appUser?.bio || '');
 
   const onSave = async () => {
-    await updateProfile({ bio }, async () => getToken() );
+    await updateProfile({ bio });
   };
 
   return (

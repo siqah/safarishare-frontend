@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { Mail, Phone, Calendar, Star, Car, Edit3, Save, X, Camera } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
-import { useAuth } from '@clerk/clerk-react';
 
 const Profile: React.FC = () => {
   const { user, updateProfile, isLoading } = useAuthStore();
-  const { getToken } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -44,7 +42,7 @@ const Profile: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      await updateProfile(formData, () => getToken());
+      await updateProfile(formData);
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile:', error);

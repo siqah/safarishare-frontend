@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, User, MapPin, Calendar, DollarSign } from 'lucide-react';
-import api from '../../lib/api';
+import { makeAuthenticatedRequest } from '../../lib/api';
 
 const BookingRequests: React.FC = () => {
   const [requests, setRequests] = useState([]);
@@ -12,7 +12,7 @@ const BookingRequests: React.FC = () => {
 
   const fetchBookingRequests = async () => {
     try {
-      const response = await api.get('/bookings/requests');
+      const response = await makeAuthenticatedRequest('get', '/bookings/requests');
       setRequests(response.data.requests);
     } catch (error) {
       console.error('Error fetching booking requests:', error);
@@ -23,7 +23,7 @@ const BookingRequests: React.FC = () => {
 
   const handleAccept = async (bookingId: string) => {
     try {
-      await api.post(`/bookings/${bookingId}/accept`);
+      await makeAuthenticatedRequest('put', `/bookings/${bookingId}/accept`, {});
       alert('Booking accepted! The passenger will be notified to make payment.');
       fetchBookingRequests();
     } catch (error: any) {
@@ -34,7 +34,7 @@ const BookingRequests: React.FC = () => {
   const handleDecline = async (bookingId: string) => {
     const reason = prompt('Reason for declining (optional):');
     try {
-      await api.post(`/bookings/${bookingId}/decline`, { reason });
+      await makeAuthenticatedRequest('put', `/bookings/${bookingId}/decline`, { reason });
       alert('Booking declined');
       fetchBookingRequests();
     } catch (error: any) {

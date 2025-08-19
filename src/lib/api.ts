@@ -49,9 +49,6 @@ if (import.meta.env.DEV) {
   console.log('🔗 Using API URL:', API_BASE_URL);
 }
 
-// Preferred Clerk JWT template name (configurable)
-const CLERK_JWT_TEMPLATE = import.meta.env.VITE_CLERK_JWT_TEMPLATE || 'default';
-
 // Wake up function for Render cold starts
 const wakeUpBackend = async () => {
   const controller = new AbortController();
@@ -91,6 +88,12 @@ const wakeUpBackend = async () => {
   return false;
 };
 
+// Simple in-memory user id for header-based auth-light
+let currentUserId: string | null = null;
+export const setApiUserId = (userId: string | null) => {
+  currentUserId = userId;
+};
+
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   headers: {
@@ -103,8 +106,13 @@ const api = axios.create({
 // Enhanced request interceptor - minimal logging in production
 api.interceptors.request.use(
   async (config) => {
-    // The token will be added manually in components using useAuth hook
-    // This approach is cleaner and avoids global state issues
+    // Attach header-based user id if available
+    if (currentUserId) {
+      config.headers = {
+        ...(config.headers || {}),
+        'X-User-Id': currentUserId,
+      } as any;
+    }
     
     // Only log in development
     if (import.meta.env.DEV) {
@@ -188,9 +196,8 @@ api.interceptors.response.use(
     
     // Handle auth errors
     if (error.response?.status === 401) {
-      // With Clerk, auth errors will be handled by Clerk's redirect
       if (import.meta.env.DEV) {
-        console.log('🔒 Auth error detected, Clerk will handle redirect');
+        console.log('🔒 Auth error detected');
       }
     }
     
@@ -198,55 +205,23 @@ api.interceptors.response.use(
   }
 );
 
-// Helper to get a Clerk token using a JWT template when available
-async function getClerkToken(getToken?: (options?: any) => Promise<string | null>): Promise<string | null> {
-  if (!getToken) return null;
-  try {
-    // Prefer a JWT template token
-    const token = await (getToken as any)({ template: CLERK_JWT_TEMPLATE });
-    if (token) return token;
-  } catch (e) {
-    // continue to fallback
-  }
-  try {
-    // Fallback to default behavior
-    return await getToken();
-  } catch {
-    return null;
-  }
-}
-
-// Helper function to make authenticated API calls with Clerk token
+// Lightweight helper to make requests (kept for backwards compatibility)
 export const makeAuthenticatedRequest = async (
   method: 'get' | 'post' | 'put' | 'delete',
   url: string, 
   data?: any,
-  getToken?: (options?: any) => Promise<string | null>
+  _getToken?: (options?: any) => Promise<string | null>
 ) => {
-  const config: any = {};
-  
-  // Add auth token if getToken function is provided
-  const token = await getClerkToken(getToken);
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-      // Send token in alternate header to improve compatibility with certain middlewares/proxies
-      'X-Clerk-Auth': token,
-      'X-Requested-With': 'XMLHttpRequest',
-    };
-  }
-  
-  // Make the request based on method
+  // make request with api instance which attaches X-User-Id if set
   switch (method) {
     case 'get':
-      return api.get(url, config);
+      return api.get(url);
     case 'post':
-      return api.post(url, data, config);
+      return api.post(url, data);
     case 'put':
-      return api.put(url, data, config);
+      return api.put(url, data);
     case 'delete':
-      return api.delete(url, config);
+      return api.delete(url);
     default:
       throw new Error(`Unsupported method: ${method}`);
   }
