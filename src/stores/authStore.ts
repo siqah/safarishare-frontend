@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api, { makeAuthenticatedRequest } from '../lib/api';
+import api from '../lib/api';
 import { socketService } from '../lib/socket';
+import { setApiUserId } from '../lib/api';
 
 export interface User {
   _id: string;
-  clerkId: string;
+  // clerkId removed; using header-based identification now
   email: string;
   firstName: string;
   lastName: string;
@@ -30,11 +31,10 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
  
-  updateProfile: (updates: Partial<User>, getToken?: () => Promise<string | null>) => Promise<void>;
-  fetchUser: (getToken?: () => Promise<string | null>) => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  fetchUser: () => Promise<void>;
   clearError: () => void;
-  syncWithClerk: (clerkUser: any, getToken?: () => Promise<string | null>) => Promise<void>;
-  setAccountType: (isDriver: boolean, getToken?: () => Promise<string | null>) => Promise<void>;
+  setAccountType: (isDriver: boolean) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -44,62 +44,13 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
 
-      syncWithClerk: async (clerkUser: any, getToken?: () => Promise<string | null>) => {
-        if (!clerkUser) {
-          set({ user: null });
-          socketService.disconnect();
-          return;
-        }
-
-        console.log('🔄 Syncing with Clerk user:', clerkUser);
-        set({ isLoading: true, error: null });
-
-        try {
-          const response = await makeAuthenticatedRequest('post', '/clerkUsers/sync', {}, getToken);
-
-          const user = response.data.user as User;
-          console.log('✅ User synced with backend:', user);
-          set({ user, isLoading: false });
-
-          socketService.connect(user._id);
-        } catch (error: any) {
-          console.error('❌ Backend sync failed:', error);
-          
-          const fallbackUser = {
-            _id: 'temp-' + clerkUser.id,
-            clerkId: clerkUser.id,
-            email: clerkUser.emailAddresses[0]?.emailAddress || '',
-            firstName: clerkUser.firstName || '',
-            lastName: clerkUser.lastName || '',
-            avatar: clerkUser.imageUrl || '',
-            phone: '',
-            dateOfBirth: '',
-            bio: '',
-            rating: 0,
-            totalRides: 0,
-            isDriver: false,
-            preferences: {
-              chattiness: 'moderate' as const,
-              music: false,
-              smoking: false,
-              pets: false,
-            },
-            createdAt: new Date().toISOString(),
-          } as User;
-          
-          console.log('🔄 Using fallback user data:', fallbackUser);
-          set({ user: fallbackUser, isLoading: false });
-        }
-      },
-
-      setAccountType: async (isDriver, getToken) => {
+      setAccountType: async (isDriver) => {
         const current = get().user;
         if (!current) return;
         set({ isLoading: true, error: null });
         try {
-          // Use new account role selection endpoint
           const role = isDriver ? 'driver' : 'rider';
-          const response = await makeAuthenticatedRequest('post', '/account/select-role', { role }, getToken);
+          const response = await api.post('/account/select-role', { role });
           const updatedUser = response.data.user as User;
           set({ user: updatedUser, isLoading: false });
         } catch (error: any) {
@@ -109,23 +60,16 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      updateProfile: async (updates, getToken) => {
+      updateProfile: async (updates) => {
         const { user } = get();
         if (!user) return;
 
         set({ isLoading: true, error: null });
 
         try {
-          const response = getToken
-            ? await makeAuthenticatedRequest('put', '/clerkUsers/profile', updates, getToken)
-            : await api.put('/clerkUsers/profile', updates);
-          
+          const response = await api.put('/users/me', updates);
           const updatedUser = response.data.user as User;
-          
-          set({
-            user: updatedUser,
-            isLoading: false
-          });
+          set({ user: updatedUser, isLoading: false });
         } catch (error: any) {
           const message = error.response?.data?.message || 'Profile update failed';
           set({ error: message, isLoading: false });
@@ -133,27 +77,19 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      fetchUser: async (getToken) => {
+      fetchUser: async () => {
         set({ isLoading: true });
-
         try {
-          const response = getToken
-            ? await makeAuthenticatedRequest('get', '/clerkUsers/profile', undefined, getToken)
-            : await api.get('/clerkUsers/profile');
+          const response = await api.get('/users/me');
           const { user } = response.data as { user: User };
-          
-          set({ 
-            user,
-            isLoading: false,
-          });
 
+          // Set X-User-Id for subsequent API calls and connect socket
+          setApiUserId(user._id);
+          set({ user, isLoading: false });
           socketService.connect(user._id);
         } catch (error) {
           console.error('Fetch user error:', error);
-          set({ 
-            user: null,
-            isLoading: false 
-          });
+          set({ user: null, isLoading: false });
         }
       },
 

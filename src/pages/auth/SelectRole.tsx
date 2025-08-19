@@ -1,16 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import { useAuthStore } from '../../stores/authStore';
 
 const SelectRole: React.FC = () => {
   const navigate = useNavigate();
-  const { getToken } = useAuth();
   const { setAccountType, isLoading, error } = useAuthStore();
 
   const chooseRole = async (isDriver: boolean) => {
     try {
-      await setAccountType(isDriver, () => getToken());
+      await setAccountType(isDriver);
       navigate(isDriver ? '/driver/dashboard' : '/rider/dashboard', { replace: true });
     } catch (e) {
       // error handled in store

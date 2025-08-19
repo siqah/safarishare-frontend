@@ -1,11 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { useAuthStore } from '../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const { getToken, isSignedIn } = useAuth();
   const { user, setAccountType, updateProfile, isLoading } = useAuthStore();
 
   const [actionError, setActionError] = useState<string | null>(null);
@@ -22,11 +20,7 @@ const Settings: React.FC = () => {
   const handleSwitchToDriver = async () => {
     setActionError(null);
     try {
-      if (!isSignedIn) {
-        setActionError('Authentication required. Please sign in to switch to Driver mode.');
-        return;
-      }
-      await setAccountType(true, () => getToken());
+      await setAccountType(true);
       navigate('/driver/profile', { replace: true });
     } catch (e: any) {
       setActionError(e?.message || 'Failed to switch role');
@@ -36,11 +30,7 @@ const Settings: React.FC = () => {
   const handleSwitchToRider = async () => {
     setActionError(null);
     try {
-      if (!isSignedIn) {
-        setActionError('Authentication required. Please sign in to switch to Rider mode.');
-        return;
-      }
-      await setAccountType(false, () => getToken());
+      await setAccountType(false);
       navigate('/rider/profile', { replace: true });
     } catch (e: any) {
       setActionError(e?.message || 'Failed to switch role');
@@ -50,7 +40,7 @@ const Settings: React.FC = () => {
   const handleSavePrefs = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateProfile({ preferences: prefs as any }, () => getToken());
+      await updateProfile({ preferences: prefs as any });
     } catch (e) {
       // noop
     }

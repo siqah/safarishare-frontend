@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useRideStore } from '../stores/rideStore';
-import { useAuth } from '@clerk/clerk-react';
 import RideCard from '../components/Rides/RideCard';
 import MessagingModal from '../components/messaging/MessagingModal';
 import { Car, Users, Clock, AlertCircle, MessageCircle, Check, X, Phone } from 'lucide-react';
 
 const MyRides: React.FC = () => {
   const { user } = useAuthStore();
-  const { getToken } = useAuth();
   const { 
     myRides, 
     bookingRequests, 
@@ -35,9 +33,9 @@ const MyRides: React.FC = () => {
       try {
         // Fetch all data in parallel
         await Promise.all([
-          getRidesByDriver(user._id, () => getToken()),
-          getBookingRequests(() => getToken()),
-          getConfirmedBookings(() => getToken())
+          getRidesByDriver(user._id),
+          getBookingRequests(),
+          getConfirmedBookings()
         ]);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -51,7 +49,7 @@ const MyRides: React.FC = () => {
   try {
     console.log('Handling accept booking for:', bookingId);
     
-    await acceptBooking(bookingId, () => getToken());
+    await acceptBooking(bookingId);
     
     // Show success message
     alert('Booking accepted! The passenger has been notified.');
@@ -59,8 +57,8 @@ const MyRides: React.FC = () => {
     // Refresh the data to get updated lists
     if (user) {
       await Promise.all([
-        getBookingRequests(() => getToken()),
-        getConfirmedBookings(() => getToken())
+        getBookingRequests(),
+        getConfirmedBookings()
       ]);
     }
     
@@ -76,13 +74,13 @@ const handleDeclineBooking = async (bookingId: string) => {
   try {
     console.log('Handling decline booking for:', bookingId);
     
-    await declineBooking(bookingId, reason || undefined, () => getToken());
+    await declineBooking(bookingId, reason || undefined);
     
     alert('Booking declined');
     
     // Refresh the data to get updated lists
     if (user) {
-      await getBookingRequests(() => getToken());
+      await getBookingRequests();
     }
     
   } catch (error: any) {
@@ -306,25 +304,17 @@ const handleDeclineBooking = async (bookingId: string) => {
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleStartMessaging(booking)}
-                          className="flex items-center space-x-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>Message</span>
-                        </button>
-                        {booking.passengerId?.phone && (
-                          <a
-                            href={`tel:${booking.passengerId.phone}`}
-                            className="flex items-center space-x-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                          >
+                        <div className="flex space-x-3">
+                          <a href={`tel:${booking.passengerId?.phone || ''}`} className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
                             <Phone className="w-4 h-4" />
-                            <span>Call</span>
+                            <span>Call passenger</span>
                           </a>
-                        )}
+                          <button onClick={() => handleStartMessaging(booking)} className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            <MessageCircle className="w-4 h-4" />
+                            <span>Message</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -333,51 +323,21 @@ const handleDeclineBooking = async (bookingId: string) => {
             </div>
           )}
 
-        {/* My Offered Rides */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">My Offered Rides</h2>
-          {myRides.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6">
+          {/* My Rides */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Your Offered Rides</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {myRides.map((ride) => (
-                <RideCard 
-                  key={ride._id} 
-                  ride={ride} 
-                  showActions={false} 
-                />
+                <RideCard key={ride._id} ride={ride} showActions={false} />
               ))}
             </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <Car className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No rides offered yet</h3>
-              <p className="text-gray-600 mb-4">Start offering rides to help others and earn money!</p>
-              <a
-                href="/offer"
-                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                Offer a ride
-              </a>
-            </div>
-          )}
+          </div>
         </div>
-        </div>
-
-        {/* Messaging Modal */}
-        {showMessaging && selectedBooking && (
-          <MessagingModal
-            booking={selectedBooking}
-            currentUser={user}
-            onClose={() => {
-              setShowMessaging(false);
-              setSelectedBooking(null);
-            }}
-          />
-        )}
       </div>
+
+     
     </div>
   );
 };
-
-// Keep your existing MessagingModal component here...
 
 export default MyRides;
