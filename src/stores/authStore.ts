@@ -1,105 +1,100 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import api from '../lib/api';
-import { socketService } from '../lib/socket';
-import { setApiUserId } from '../lib/api';
 
-export interface User {
+interface User {
   _id: string;
-  // clerkId removed; using header-based identification now
+  clerkId: string;
   email: string;
   firstName: string;
   lastName: string;
-  avatar?: string;
+  profileImageUrl?: string;
+  role: 'rider' | 'driver' | 'admin';
+  isDriver: boolean;
   phone?: string;
   dateOfBirth?: string;
   bio?: string;
-  rating: number;
-  totalRides: number;
-  isDriver: boolean;
-  preferences: {
-    chattiness: 'silent' | 'moderate' | 'talkative';
+  preferences?: {
+    chattiness: 'quiet' | 'moderate' | 'chatty';
     music: boolean;
     smoking: boolean;
     pets: boolean;
   };
-  createdAt: string;
+  rating: number;
+  totalRides: number;
+  isActive: boolean;
+  emailVerified: boolean;
 }
 
-interface AuthState {
+type AuthState = {
+  isAuthenticated: boolean;
   user: User | null;
-  isLoading: boolean;
-  error: string | null;
- 
-  updateProfile: (updates: Partial<User>) => Promise<void>;
-  fetchUser: () => Promise<void>;
-  clearError: () => void;
-  setAccountType: (isDriver: boolean) => Promise<void>;
-}
+  loading: boolean;
+  syncWithClerk: () => Promise<void>;
+  logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
+  selectRole: (role: 'rider' | 'driver') => Promise<boolean>;
+};
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isLoading: false,
-      error: null,
+export const useAuthStore = create<AuthState>((set, get) => ({
+  isAuthenticated: false,
+  user: null,
+  loading: false,
 
-      setAccountType: async (isDriver) => {
-        const current = get().user;
-        if (!current) return;
-        set({ isLoading: true, error: null });
-        try {
-          const role = isDriver ? 'driver' : 'rider';
-          const response = await api.post('/account/select-role', { role });
-          const updatedUser = response.data.user as User;
-          set({ user: updatedUser, isLoading: false });
-        } catch (error: any) {
-          const message = error?.response?.data?.message || 'Failed to update account type';
-          set({ error: message, isLoading: false });
-          throw new Error(message);
-        }
-      },
-
-      updateProfile: async (updates) => {
-        const { user } = get();
-        if (!user) return;
-
-        set({ isLoading: true, error: null });
-
-        try {
-          const response = await api.put('/users/me', updates);
-          const updatedUser = response.data.user as User;
-          set({ user: updatedUser, isLoading: false });
-        } catch (error: any) {
-          const message = error.response?.data?.message || 'Profile update failed';
-          set({ error: message, isLoading: false });
-          throw new Error(message);
-        }
-      },
-
-      fetchUser: async () => {
-        set({ isLoading: true });
-        try {
-          const response = await api.get('/users/me');
-          const { user } = response.data as { user: User };
-
-          // Set X-User-Id for subsequent API calls and connect socket
-          setApiUserId(user._id);
-          set({ user, isLoading: false });
-          socketService.connect(user._id);
-        } catch (error) {
-          console.error('Fetch user error:', error);
-          set({ user: null, isLoading: false });
-        }
-      },
-
-      clearError: () => set({ error: null }),
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ 
-        user: state.user,
-      }),
+  syncWithClerk: async () => {
+    try {
+      set({ loading: true });
+      
+      // Get current user profile from backend
+      const response = await api.get('/users/me');
+      
+      if (response.data.success) {
+        set({ 
+          user: response.data.user, 
+          isAuthenticated: true,
+          loading: false 
+        });
+      }
+    } catch (error) {
+      console.error('Failed to sync with backend:', error);
+      set({ 
+        user: null, 
+        isAuthenticated: false,
+        loading: false 
+      });
     }
-  )
-);
+  },
+
+  logout: () => {
+    set({ 
+      isAuthenticated: false, 
+      user: null, 
+      loading: false 
+    });
+  },
+
+  updateUser: (updates: Partial<User>) => {
+    const currentUser = get().user;
+    if (currentUser) {
+      set({ user: { ...currentUser, ...updates } });
+    }
+  },
+
+  selectRole: async (role: 'rider' | 'driver') => {
+    try {
+      const response = await api.post('/account/select-role', { role });
+      
+      if (response.data.success) {
+        get().updateUser({ 
+          role, 
+          isDriver: role === 'driver' 
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Failed to select role:', error);
+      return false;
+    }
+  }
+}));

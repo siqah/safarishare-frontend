@@ -1,5 +1,6 @@
+import React, { useEffect } from 'react';
+import { ClerkProvider, useAuth } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import RideSearch from './components/Rides/RideSearch';
@@ -10,34 +11,73 @@ import BookingRequests from './components/Bookings/BookingRequests';
 import MyBookings from './components/Bookings/MyBookings';
 import Settings from './pages/Settings';
 import { useAuthStore } from './stores/authStore';
+import { setAuthTokenGetter } from './lib/api';
+import AdminApp from './admin';
+import AuthGuard from './components/Auth/AuthGuard';
+import SelectRole from './pages/auth/SelectRole';
+import SignInPage from './pages/auth/SignInPage';
+import SignUpPage from './pages/auth/SignUpPage';
 
-function App() {
-  const { user } = useAuthStore();
+// Get the publishable key from environment variables
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!clerkPublishableKey) {
+  throw new Error('Missing Clerk publishable key');
+}
+
+function AppRoutes() {
+  const { user, syncWithClerk } = useAuthStore();
+  const { getToken } = useAuth();
 
   useEffect(() => {
-    // no-op placeholder for any init
-  }, []);
+    // Set up API token getter
+    if (getToken) {
+      setAuthTokenGetter(() => getToken());
+    }
+    
+    // Sync with backend
+    syncWithClerk();
+  }, [syncWithClerk, getToken]);
 
   const RequireUser = ({ children }: { children: JSX.Element }) => {
-    if (!user) return <Navigate to="/" replace />;
-    return children;
+    return <AuthGuard>{children}</AuthGuard>;
   };
 
   const DriverOnly = ({ children }: { children: JSX.Element }) => {
-    if (!user) return <Navigate to="/" replace />;
-    if (!user.isDriver) return <Navigate to="/rider/dashboard" replace />;
-    return children;
+    return (
+      <AuthGuard requiredRole="driver">
+        {children}
+      </AuthGuard>
+    );
   };
 
   const RiderOnly = ({ children }: { children: JSX.Element }) => {
-    if (!user) return <Navigate to="/" replace />;
-    if (user.isDriver) return <Navigate to="/driver/dashboard" replace />;
-    return children;
+    return (
+      <AuthGuard requiredRole="rider">
+        {children}
+      </AuthGuard>
+    );
+  };
+
+  const AdminOnly = ({ children }: { children: JSX.Element }) => {
+    return (
+      <AuthGuard requiredRole="admin">
+        {children}
+      </AuthGuard>
+    );
   };
 
   return (
     <Router>
       <Routes>
+        {/* Auth routes */}
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-up" element={<SignUpPage />} />
+        <Route path="/select-role" element={<RequireUser><SelectRole /></RequireUser>} />
+
+        {/* Admin routes */}
+        <Route path="/admin/*" element={<AdminOnly><AdminApp /></AdminOnly>} />
+
         <Route path="/" element={<Layout />}> 
           <Route index element={<Home />} />
           <Route path="search" element={<RideSearch />} />
@@ -75,6 +115,14 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      <AppRoutes />
+    </ClerkProvider>
   );
 }
 
