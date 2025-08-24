@@ -1,17 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 
 const SelectRole: React.FC = () => {
   const navigate = useNavigate();
-  const { setAccountType, isLoading, error } = useAuthStore();
+  const { selectRole } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const chooseRole = async (isDriver: boolean) => {
+  const chooseRole = async (role: 'rider' | 'driver') => {
     try {
-      await setAccountType(isDriver);
-      navigate(isDriver ? '/driver/dashboard' : '/rider/dashboard', { replace: true });
-    } catch (e) {
-      // error handled in store
+      setIsLoading(true);
+      setError(null);
+      
+      const success = await selectRole(role);
+      
+      if (success) {
+        navigate(role === 'driver' ? '/driver/dashboard' : '/rider/dashboard', { replace: true });
+      } else {
+        setError('Failed to set role. Please try again.');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -27,7 +39,7 @@ const SelectRole: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={() => chooseRole(false)}
+            onClick={() => chooseRole('rider')}
             disabled={isLoading}
             className="border rounded-lg p-5 text-left hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
           >
@@ -36,7 +48,7 @@ const SelectRole: React.FC = () => {
           </button>
 
           <button
-            onClick={() => chooseRole(true)}
+            onClick={() => chooseRole('driver')}
             disabled={isLoading}
             className="border rounded-lg p-5 text-left hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
           >
@@ -44,6 +56,13 @@ const SelectRole: React.FC = () => {
             <p className="text-sm text-gray-600">Offer rides, manage requests, and track your trips.</p>
           </button>
         </div>
+
+        {isLoading && (
+          <div className="mt-4 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-sm text-gray-600">Setting up your account...</span>
+          </div>
+        )}
       </div>
     </div>
   );

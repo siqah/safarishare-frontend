@@ -88,10 +88,11 @@ const wakeUpBackend = async () => {
   return false;
 };
 
-// Simple in-memory user id for header-based auth-light
-let currentUserId: string | null = null;
-export const setApiUserId = (userId: string | null) => {
-  currentUserId = userId;
+// Global function to get Clerk auth token
+let getAuthToken: (() => Promise<string | null>) | null = null;
+
+export const setAuthTokenGetter = (tokenGetter: () => Promise<string | null>) => {
+  getAuthToken = tokenGetter;
 };
 
 const api = axios.create({
@@ -106,12 +107,19 @@ const api = axios.create({
 // Enhanced request interceptor - minimal logging in production
 api.interceptors.request.use(
   async (config) => {
-    // Attach header-based user id if available
-    if (currentUserId) {
-      config.headers = {
-        ...(config.headers || {}),
-        'X-User-Id': currentUserId,
-      } as any;
+    // Attach Clerk auth token if available
+    if (getAuthToken) {
+      try {
+        const token = await getAuthToken();
+        if (token) {
+          config.headers = {
+            ...(config.headers || {}),
+            'Authorization': `Bearer ${token}`,
+          } as any;
+        }
+      } catch (error) {
+        console.error('Failed to get auth token:', error);
+      }
     }
     
     // Only log in development
@@ -210,9 +218,14 @@ export const makeAuthenticatedRequest = async (
   method: 'get' | 'post' | 'put' | 'delete',
   url: string, 
   data?: any,
-  _getToken?: (options?: any) => Promise<string | null>
+  getToken?: (options?: any) => Promise<string | null>
 ) => {
-  // make request with api instance which attaches X-User-Id if set
+  // Set the token getter if provided
+  if (getToken && !getAuthToken) {
+    setAuthTokenGetter(getToken);
+  }
+  
+  // make request with api instance which attaches Authorization header
   switch (method) {
     case 'get':
       return api.get(url);
