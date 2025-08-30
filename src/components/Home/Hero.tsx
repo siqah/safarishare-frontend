@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { MapPin, Calendar, Search, Users, Car, Leaf } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useRideStore } from '../../stores/rideStore';
 
 const Hero: React.FC = () => {
   const [searchData, setSearchData] = useState({
@@ -9,14 +7,7 @@ const Hero: React.FC = () => {
     to: '',
     date: '',
   });
-  const { searchRides } = useRideStore();
-  const navigate = useNavigate();
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    searchRides(searchData);
-    navigate('/search');
-  };
 
   return (
     <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 min-h-screen flex items-center">
@@ -65,7 +56,7 @@ const Hero: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
               Find your next ride
             </h2>
-            <form onSubmit={handleSearch} className="space-y-6">
+            <form onSubmit={ void 0} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   From
