@@ -1,6 +1,8 @@
 // src/pages/Dashboard.tsx
-import  useAuth from "../stores/authStore";
+import useAuth from "../stores/authStore";
 import { LogOut, Car, Users } from "lucide-react";
+import DriverDashboard from "../components/driver/DriverDashboard";
+import { UpgradeToDriver } from "../components/driver/upgradeToDriver";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -25,6 +27,8 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {user?.role === "user" ? <UpgradeToDriver /> : <DriverDashboard />}
+
         {/* Card 1 */}
         <div className="bg-white shadow-md rounded-xl p-6 hover:shadow-lg transition">
           <div className="flex items-center gap-4">
