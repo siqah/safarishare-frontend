@@ -1,100 +1,103 @@
-import { create } from 'zustand';
-import api from '../lib/api';
+import { create } from "zustand";
+import axios from "axios";
 
-interface User {
-  _id: string;
-  clerkId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  profileImageUrl?: string;
-  role: 'rider' | 'driver' | 'admin';
-  isDriver: boolean;
-  phone?: string;
-  dateOfBirth?: string;
-  bio?: string;
-  preferences?: {
-    chattiness: 'quiet' | 'moderate' | 'chatty';
-    music: boolean;
-    smoking: boolean;
-    pets: boolean;
-  };
-  rating: number;
-  totalRides: number;
-  isActive: boolean;
-  emailVerified: boolean;
+
+
+axios.defaults.withCredentials = true;
+
+const API_URL = "http://localhost:10000/api/auth";
+
+interface AuthState {
+  user: any;
+  token: string | null;
+  loading: boolean;
+  error: string | null;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean }>;
+  login: (email: string, password: string) => Promise<{ success: boolean }>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
-type AuthState = {
-  isAuthenticated: boolean;
-  user: User | null;
-  loading: boolean;
-  syncWithClerk: () => Promise<void>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
-  selectRole: (role: 'rider' | 'driver') => Promise<boolean>;
-};
-
-export const useAuthStore = create<AuthState>((set, get) => ({
-  isAuthenticated: false,
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  token: localStorage.getItem("token") || null,
   loading: false,
+  error: null,
 
-  syncWithClerk: async () => {
-    try {
-      set({ loading: true });
-      
-      // Get current user profile from backend
-      const response = await api.get('/users/me');
-      
-      if (response.data.success) {
-        set({ 
-          user: response.data.user, 
-          isAuthenticated: true,
-          loading: false 
-        });
-      }
-    } catch (error) {
-      console.error('Failed to sync with backend:', error);
-      set({ 
-        user: null, 
-        isAuthenticated: false,
-        loading: false 
-      });
-    }
-  },
 
-  logout: () => {
-    set({ 
-      isAuthenticated: false, 
-      user: null, 
-      loading: false 
+
+  // Register
+register: async (name, email, password) => {
+  set({ loading: true, error: null });
+  try {
+    const res = await axios.post(`${API_URL}/register`, {
+      name,
+      email,
+      password,
     });
-  },
 
-  updateUser: (updates: Partial<User>) => {
-    const currentUser = get().user;
-    if (currentUser) {
-      set({ user: { ...currentUser, ...updates } });
-    }
-  },
+    const { token, user } = res.data;
+    localStorage.setItem("token", token);
+    set({ token, user, loading: false });
 
-  selectRole: async (role: 'rider' | 'driver') => {
-    try {
-      const response = await api.post('/account/select-role', { role });
-      
-      if (response.data.success) {
-        get().updateUser({ 
-          role, 
-          isDriver: role === 'driver' 
-        });
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Failed to select role:', error);
-      return false;
-    }
+    return { success: true };
+  } catch (err: any) {
+    set({
+      loading: false,
+      error: err.response?.data?.message || "Registration failed",
+    });
+    return { success: false };
   }
+},
+
+// Login
+login: async (email, password) => {
+  set({ loading: true, error: null });
+  try {
+    const res = await axios.post(`${API_URL}/login`, { email, password });
+
+    const { token, user } = res.data;
+    localStorage.setItem("token", token);
+    set({ token, user, loading: false });
+
+    return { success: true };
+  } catch (err: any) {
+    set({
+      loading: false,
+      error: err.response?.data?.message || "Login failed",
+    });
+    return { success: false };
+  }
+},
+
+
+  // Logout
+  logout: async () => {
+    localStorage.removeItem("token");
+    set({ token: null, user: null });
+    try {
+      await axios.post(`${API_URL}/logout`);
+    } catch (err) {
+      // Ignore errors on logout
+    }
+  },
+
+  // Refresh (get a new access token if expired)
+  refresh: async () => {
+    try {
+      const res = await axios.post(`${API_URL}/refresh`);
+      const { accessToken } = res.data;
+      localStorage.setItem("token", accessToken);
+      set({ token: accessToken });
+    } catch (err) {
+      set({ token: null, user: null, error: "Session expired" });
+    }
+  },
 }));
+
+export default useAuthStore;
+
+export const useAuth = () => {
+  const { user, token, loading, error, register, login, logout, refresh } = useAuthStore();
+  return { user, token, loading, error, register, login, logout, refresh };
+};
