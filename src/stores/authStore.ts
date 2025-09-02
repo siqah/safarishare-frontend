@@ -6,9 +6,16 @@ import axios from "axios";
 axios.defaults.withCredentials = true;
 
 const API_URL = "http://localhost:10000/api/auth";
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  driverProfile: any;
+}
 
 interface AuthState {
-  user: any;
+  user: User | null;
   token: string | null;
   loading: boolean;
   error: string | null;
@@ -16,6 +23,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ success: boolean }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  getUser: () => Promise<{ id: string; email: string; name: string; role: string; driverProfile: any } | null>;
+  checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -40,7 +49,7 @@ register: async (name, email, password) => {
     localStorage.setItem("token", token);
     set({ token, user, loading: false });
 
-    return { success: true };
+    return { success: true, user, token };
   } catch (err: any) {
     set({
       loading: false,
@@ -60,18 +69,19 @@ login: async (email, password) => {
     localStorage.setItem("token", token);
     set({ token, user, loading: false });
 
-    return { success: true };
+    return { success: true, user, token }; // ✅ user has role
   } catch (err: any) {
     set({
       loading: false,
       error: err.response?.data?.message || "Login failed",
     });
-    return { success: false };
+    return { success: false, user: null, token: null }; // ✅ consistent
   }
 },
 
 
-  // Logout
+
+// Logout
   logout: async () => {
     localStorage.removeItem("token");
     set({ token: null, user: null });
@@ -82,22 +92,65 @@ login: async (email, password) => {
     }
   },
 
-  // Refresh (get a new access token if expired)
+  // Refresh (attempt to refresh token/user data)
   refresh: async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
     try {
-      const res = await axios.post(`${API_URL}/refresh`);
-      const { accessToken } = res.data;
-      localStorage.setItem("token", accessToken);
-      set({ token: accessToken });
+      const res = await axios.get(`${API_URL}/refresh`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { token: newToken, user } = res.data;
+      if (newToken) {
+        localStorage.setItem("token", newToken);
+        set({ token: newToken, user });
+      } else if (user) {
+        set({ user });
+      }
     } catch (err) {
-      set({ token: null, user: null, error: "Session expired" });
+      localStorage.removeItem("token");
+      set({ user: null, token: null });
     }
   },
+
+  checkAuth: async () => {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+
+  try {
+    const res = await axios.get(`${API_URL}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    set({ user: res.data, token });
+  } catch (err) {
+    localStorage.removeItem("token");
+    set({ user: null, token: null });
+  }
+},
+   getUser: async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+
+    try {
+      const res = await axios.get(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      set({ user: res.data });
+      return res.data;
+    } catch (err) {
+      localStorage.removeItem("token");
+      set({ user: null, token: null });
+      return null;
+    }
+  }
+
+  
 }));
+
 
 export default useAuthStore;
 
 export const useAuth = () => {
-  const { user, token, loading, error, register, login, logout, refresh } = useAuthStore();
-  return { user, token, loading, error, register, login, logout, refresh };
+  const { user, token, loading, error, register, login, logout, refresh, getUser, checkAuth } = useAuthStore();
+  return { user, token, loading, error, register, login, logout, refresh, getUser, checkAuth };
 };
