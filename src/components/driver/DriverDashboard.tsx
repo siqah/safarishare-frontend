@@ -1,174 +1,160 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
+import useAuth from "../../stores/authStore";
+import { LogOut, Car, DollarSign, Clock, CheckCircle } from "lucide-react";
 
 interface Ride {
-    id: string;
-    pickup: string;
-    dropoff: string;
-    time: string;
-    fare: number;
-    status: 'pending' | 'ongoing' | 'completed';
+  id: string;
+  pickup: string;
+  dropoff: string;
+  time: string;
+  fare: number;
+  status: "pending" | "ongoing" | "completed";
 }
 
+// Temporary mock rides
 const mockRides: Ride[] = [
-    { id: 'R-1001', pickup: 'Downtown', dropoff: 'Airport', time: '08:30', fare: 24.5, status: 'completed' },
-    { id: 'R-1002', pickup: 'Mall', dropoff: 'Stadium', time: '09:15', fare: 13.2, status: 'completed' },
-    { id: 'R-1003', pickup: 'University', dropoff: 'Library', time: '10:05', fare: 7.8, status: 'pending' }
+  { id: "R-1001", pickup: "Downtown", dropoff: "Airport", time: "08:30", fare: 24.5, status: "completed" },
+  { id: "R-1002", pickup: "Mall", dropoff: "Stadium", time: "09:15", fare: 13.2, status: "completed" },
+  { id: "R-1003", pickup: "University", dropoff: "Library", time: "10:05", fare: 7.8, status: "pending" }
 ];
 
-const cardStyle: React.CSSProperties = {
-    background: '#fff',
-    padding: '16px',
-    borderRadius: 8,
-    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-    flex: 1,
-    minWidth: 160,
-    margin: '8px'
-};
-
 const DriverDashboard: React.FC = () => {
-    const [online, setOnline] = useState(false);
-    const [rides, setRides] = useState<Ride[]>([]);
-    const [loading, setLoading] = useState(true);
+  const { user, logout } = useAuth();
+  const [online, setOnline] = useState(false);
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Simulate loading
-        const t = setTimeout(() => {
-            setRides(mockRides);
-            setLoading(false);
-        }, 400);
-        return () => clearTimeout(t);
-    }, []);
+  useEffect(() => {
+    // Simulate API fetch
+    const t = setTimeout(() => {
+      setRides(mockRides);
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(t);
+  }, []);
 
-    const earningsToday = rides
-        .filter(r => r.status === 'completed')
-        .reduce((sum, r) => sum + r.fare, 0);
+  const earningsToday = rides.filter(r => r.status === "completed").reduce((sum, r) => sum + r.fare, 0);
+  const nextRide = rides.find(r => r.status === "pending");
 
-    const nextRide = rides.find(r => r.status === 'pending');
-
-    return (
-        <div style={{ fontFamily: 'system-ui, sans-serif', padding: 24, background: '#f5f7fb', minHeight: '100vh' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <h1 style={{ margin: 0, fontSize: 24 }}>Driver Dashboard</h1>
-                <button
-                    onClick={() => setOnline(o => !o)}
-                    style={{
-                        background: online ? '#d9534f' : '#198754',
-                        color: '#fff',
-                        padding: '10px 18px',
-                        border: 'none',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        fontWeight: 600
-                    }}
-                >
-                    {online ? 'Go Offline' : 'Go Online'}
-                </button>
-            </header>
-
-            <section style={{ display: 'flex', flexWrap: 'wrap', margin: '-8px 0 16px' }}>
-                <div style={cardStyle}>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Status</div>
-                        <div style={{ fontSize: 20, fontWeight: 600, color: online ? '#198754' : '#555' }}>
-                            {online ? 'Online' : 'Offline'}
-                        </div>
-                </div>
-                <div style={cardStyle}>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Completed Rides</div>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>{rides.filter(r => r.status === 'completed').length}</div>
-                </div>
-                <div style={cardStyle}>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Earnings (Today)</div>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>${earningsToday.toFixed(2)}</div>
-                </div>
-                <div style={cardStyle}>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Pending</div>
-                    <div style={{ fontSize: 20, fontWeight: 600 }}>{rides.filter(r => r.status === 'pending').length}</div>
-                </div>
-            </section>
-
-            <section style={{ background: '#fff', borderRadius: 8, padding: 20, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
-                <h2 style={{ marginTop: 0, fontSize: 18 }}>Next Ride</h2>
-                {loading && <div>Loading...</div>}
-                {!loading && !nextRide && <div>No pending rides.</div>}
-                {!loading && nextRide && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div><strong>ID:</strong> {nextRide.id}</div>
-                        <div><strong>Pickup:</strong> {nextRide.pickup}</div>
-                        <div><strong>Dropoff:</strong> {nextRide.dropoff}</div>
-                        <div><strong>Time:</strong> {nextRide.time}</div>
-                        <div><strong>Fare:</strong> ${nextRide.fare.toFixed(2)}</div>
-                        <button
-                            style={{
-                                marginTop: 8,
-                                alignSelf: 'flex-start',
-                                background: '#0d6efd',
-                                color: '#fff',
-                                padding: '8px 14px',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: 'pointer'
-                            }}
-                            onClick={() =>
-                                setRides(rs =>
-                                    rs.map(r => r.id === nextRide.id ? { ...r, status: 'ongoing' } : r)
-                                )
-                            }
-                        >
-                            Accept Ride
-                        </button>
-                    </div>
-                )}
-            </section>
-
-            <section style={{ marginTop: 24 }}>
-                <h2 style={{ fontSize: 18 }}>Recent Rides</h2>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                        <thead>
-                            <tr style={{ background: '#f0f2f5', textAlign: 'left' }}>
-                                <th style={thTd}>ID</th>
-                                <th style={thTd}>Pickup</th>
-                                <th style={thTd}>Dropoff</th>
-                                <th style={thTd}>Time</th>
-                                <th style={thTd}>Fare</th>
-                                <th style={thTd}>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rides.map(r => (
-                                <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={thTd}>{r.id}</td>
-                                    <td style={thTd}>{r.pickup}</td>
-                                    <td style={thTd}>{r.dropoff}</td>
-                                    <td style={thTd}>{r.time}</td>
-                                    <td style={thTd}>${r.fare.toFixed(2)}</td>
-                                    <td style={{ ...thTd, color: statusColor(r.status), fontWeight: 600 }}>
-                                        {r.status}
-                                    </td>
-                                </tr>
-                            ))}
-                            {!rides.length && !loading && (
-                                <tr>
-                                    <td colSpan={6} style={{ padding: 16, textAlign: 'center', opacity: 0.6 }}>No rides</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+  return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      {/* Header */}
+      <header className="flex justify-between items-center bg-white shadow-md rounded-xl p-4 mb-6">
+        <h1 className="text-2xl font-bold text-blue-600">Driver Dashboard 🚘</h1>
+        <div className="flex items-center gap-4">
+          <span className="font-medium text-gray-700">
+            Hi, {user?.name || "Driver"} <br />
+            <span className="text-xs text-green-600 font-semibold">Driver</span>
+          </span>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition shadow-sm"
+          >
+            <LogOut size={18} /> Logout
+          </button>
         </div>
-    );
+      </header>
+
+      {/* Stats */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Status" value={online ? "Online" : "Offline"} color={online ? "text-green-600" : "text-gray-600"} icon={<Car />} />
+        <StatCard label="Completed Rides" value={rides.filter(r => r.status === "completed").length} icon={<CheckCircle />} />
+        <StatCard label="Earnings (Today)" value={`$${earningsToday.toFixed(2)}`} icon={<DollarSign />} />
+        <StatCard label="Pending Rides" value={rides.filter(r => r.status === "pending").length} icon={<Clock />} />
+      </section>
+
+      {/* Next Ride */}
+      <section className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">Next Ride</h2>
+        {loading && <div>Loading...</div>}
+        {!loading && !nextRide && <div className="text-gray-500">No pending rides.</div>}
+        {!loading && nextRide && (
+          <div className="space-y-2">
+            <p><strong>ID:</strong> {nextRide.id}</p>
+            <p><strong>Pickup:</strong> {nextRide.pickup}</p>
+            <p><strong>Dropoff:</strong> {nextRide.dropoff}</p>
+            <p><strong>Time:</strong> {nextRide.time}</p>
+            <p><strong>Fare:</strong> ${nextRide.fare.toFixed(2)}</p>
+            <button
+              onClick={() =>
+                setRides(rs =>
+                  rs.map(r => r.id === nextRide.id ? { ...r, status: "ongoing" } : r)
+                )
+              }
+              className="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
+            >
+              Accept Ride
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Recent Rides */}
+      <section className="bg-white rounded-xl shadow-md p-6">
+        <h2 className="text-lg font-semibold mb-4">Recent Rides</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-3">ID</th>
+                <th className="p-3">Pickup</th>
+                <th className="p-3">Dropoff</th>
+                <th className="p-3">Time</th>
+                <th className="p-3">Fare</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rides.map(r => (
+                <tr key={r.id} className="border-b">
+                  <td className="p-3">{r.id}</td>
+                  <td className="p-3">{r.pickup}</td>
+                  <td className="p-3">{r.dropoff}</td>
+                  <td className="p-3">{r.time}</td>
+                  <td className="p-3">${r.fare.toFixed(2)}</td>
+                  <td className="p-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {!rides.length && !loading && (
+                <tr>
+                  <td colSpan={6} className="text-center p-4 text-gray-500">
+                    No rides yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
 };
 
-const thTd: React.CSSProperties = { padding: '10px 12px', whiteSpace: 'nowrap' };
+const StatCard = ({ label, value, icon, color = "text-gray-800" }: { label: string; value: string | number; icon: React.ReactNode; color?: string }) => (
+  <div className="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
+    <div className="text-blue-600">{icon}</div>
+    <div>
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className={`text-xl font-semibold ${color}`}>{value}</div>
+    </div>
+  </div>
+);
 
-function statusColor(status: Ride['status']): string {
-    switch (status) {
-        case 'pending': return '#fd7e14';
-        case 'ongoing': return '#0d6efd';
-        case 'completed': return '#198754';
-        default: return '#555';
-    }
+function statusBadge(status: Ride["status"]): string {
+  switch (status) {
+    case "pending":
+      return "bg-orange-100 text-orange-700";
+    case "ongoing":
+      return "bg-blue-100 text-blue-700";
+    case "completed":
+      return "bg-green-100 text-green-700";
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
 }
 
 export default DriverDashboard;
