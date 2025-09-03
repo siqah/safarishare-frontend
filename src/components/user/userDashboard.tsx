@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import useAuth from "../../stores/authStore";
-import { LogOut, Car, Users, PlusCircle, Search } from "lucide-react";
+import { LogOut, Car, Search } from "lucide-react";
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
@@ -30,7 +30,7 @@ const UserDashboard = () => {
 
           {/* Logout */}
           <button
-            onClick={logout}
+            onClick={() => logout()}
             className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition shadow-sm"
           >
             <LogOut size={18} /> Logout
