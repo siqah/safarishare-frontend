@@ -1,11 +1,10 @@
 import { create } from "zustand";
 import axios from "axios";
 
-
-
 axios.defaults.withCredentials = true;
 
 const API_URL = "http://localhost:10000/api/auth";
+
 interface User {
   id: string;
   email: string;
@@ -14,143 +13,280 @@ interface User {
   driverProfile: any;
 }
 
+interface Account {
+  token: string;
+  user: User;
+}
+
 interface AuthState {
+  accounts: Record<string, Account>; // email -> { token, user }
+  activeAccount: string | null;
   user: User | null;
   token: string | null;
   loading: boolean;
   error: string | null;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean }>;
-  login: (email: string, password: string) => Promise<{ success: boolean }>;
-  logout: () => Promise<void>;
+
+  register: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; user?: User; token?: string; email?: string }>;
+  logout: (email?: string) => Promise<void>;
+  switchAccount: (email: string) => void;
   refresh: () => Promise<void>;
-  getUser: () => Promise<{ id: string; email: string; name: string; role: string; driverProfile: any } | null>;
+  getUser: () => Promise<User | null>;
   checkAuth: () => Promise<void>;
+  getAccountsList: () => { email: string; name: string; role: string }[];
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: localStorage.getItem("token") || null,
-  loading: false,
-  error: null,
-
-
-
-  // Register
-register: async (name, email, password) => {
-  set({ loading: true, error: null });
+// 🔹 helpers
+const loadAccounts = (): Record<string, Account> => {
   try {
-    const res = await axios.post(`${API_URL}/register`, {
-      name,
-      email,
-      password,
-    });
-
-    const { token, user } = res.data;
-    localStorage.setItem("token", token);
-    set({ token, user, loading: false });
-
-    return { success: true, user, token };
-  } catch (err: any) {
-    set({
-      loading: false,
-      error: err.response?.data?.message || "Registration failed",
-    });
-    return { success: false };
+    const raw = localStorage.getItem("auth-accounts");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error("Failed to load accounts", e);
   }
-},
+  return {};
+};
 
-// Login
-login: async (email, password) => {
-  set({ loading: true, error: null });
-  try {
-    const res = await axios.post(`${API_URL}/login`, { email, password });
+const saveAccounts = (accounts: Record<string, Account>) => {
+  localStorage.setItem("auth-accounts", JSON.stringify(accounts));
+};
 
-    const { token, user } = res.data;
-    localStorage.setItem("token", token);
-    set({ token, user, loading: false });
+export const useAuthStore = create<AuthState>((set, get) => {
+  const accounts = loadAccounts();
+  const activeAccount = sessionStorage.getItem("activeAccount");
+  const currentAcc = activeAccount ? accounts[activeAccount] : null;
 
-    return { success: true, user, token }; // ✅ user has role
-  } catch (err: any) {
-    set({
-      loading: false,
-      error: err.response?.data?.message || "Login failed",
-    });
-    return { success: false, user: null, token: null }; // ✅ consistent
-  }
-},
+  return {
+    accounts,
+    activeAccount,
+    user: currentAcc?.user || null,
+    token: currentAcc?.token || null,
+    loading: false,
+    error: null,
 
+    // Register
+    register: async (name, email, password) => {
+      set({ loading: true, error: null });
+      try {
+        const res = await axios.post(`${API_URL}/register`, {
+          name,
+          email,
+          password,
+        });
+        const { token, user } = res.data;
 
+        const newAccounts = { ...get().accounts, [email]: { token, user } };
+        saveAccounts(newAccounts);
+        sessionStorage.setItem("activeAccount", email);
 
-// Logout
-  logout: async () => {
-    localStorage.removeItem("token");
-    set({ token: null, user: null });
-    try {
-      await axios.post(`${API_URL}/logout`);
-    } catch (err) {
-      // Ignore errors on logout
-    }
-  },
-
-  // Refresh (attempt to refresh token/user data)
-  refresh: async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    try {
-      const res = await axios.get(`${API_URL}/refresh`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const { token: newToken, user } = res.data;
-      if (newToken) {
-        localStorage.setItem("token", newToken);
-        set({ token: newToken, user });
-      } else if (user) {
-        set({ user });
+        set({
+          accounts: newAccounts,
+          activeAccount: email,
+          token,
+          user,
+          loading: false,
+        });
+        return { success: true };
+      } catch (err: any) {
+        set({
+          loading: false,
+          error: err.response?.data?.message || "Registration failed",
+        });
+        return { success: false };
       }
-    } catch (err) {
-      localStorage.removeItem("token");
-      set({ user: null, token: null });
-    }
-  },
+    },
 
-  checkAuth: async () => {
-  const token = localStorage.getItem("token");
-  if (!token) return;
+    // Login
+    login: async (email, password) => {
+      set({ loading: true, error: null });
+      try {
+        const res = await axios.post(`${API_URL}/login`, { email, password });
+        const { token, user } = res.data;
 
-  try {
-    const res = await axios.get(`${API_URL}/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    set({ user: res.data, token });
-  } catch (err) {
-    localStorage.removeItem("token");
-    set({ user: null, token: null });
-  }
-},
-   getUser: async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return null;
+        const newAccounts = { ...get().accounts, [email]: { token, user } };
+        saveAccounts(newAccounts);
+        sessionStorage.setItem("activeAccount", email);
 
-    try {
-      const res = await axios.get(`${API_URL}/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        set({
+          accounts: newAccounts,
+          activeAccount: email,
+          token,
+          user,
+          loading: false,
+        });
+
+        return { success: true, user, token };
+      } catch (err: any) {
+        set({
+          loading: false,
+          error: err.response?.data?.message || "Login failed",
+        });
+        return { success: false };
+      }
+    },
+
+    // Logout (only remove one account)
+    logout: async (email?: string) => {
+      const target = email || get().activeAccount;
+      if (!target) return;
+
+      const newAccounts = { ...get().accounts };
+      delete newAccounts[target];
+      saveAccounts(newAccounts);
+
+      let newActive = get().activeAccount;
+      if (target === newActive) {
+        sessionStorage.removeItem("activeAccount");
+        newActive = null;
+      }
+
+      set({
+        accounts: newAccounts,
+        activeAccount: newActive,
+        user: newActive ? newAccounts[newActive]?.user : null,
+        token: newActive ? newAccounts[newActive]?.token : null,
       });
-      set({ user: res.data });
-      return res.data;
-    } catch (err) {
-      localStorage.removeItem("token");
-      set({ user: null, token: null });
-      return null;
-    }
-  }
 
-  
-}));
+      try {
+        await axios.post(`${API_URL}/logout`);
+      } catch {
+        // ignore
+      }
+    },
 
+    // Switch account (tab-specific)
+    switchAccount: (email: string) => {
+      const acc = get().accounts[email];
+      if (!acc) return;
+      sessionStorage.setItem("activeAccount", email);
+      set({ activeAccount: email, user: acc.user, token: acc.token });
+    },
+
+    // Refresh token for active account
+    refresh: async () => {
+      const { activeAccount, accounts } = get();
+      if (!activeAccount) return;
+
+      const acc = accounts[activeAccount];
+      if (!acc) return;
+
+      try {
+        const res = await axios.get(`${API_URL}/refresh`, {
+          headers: { Authorization: `Bearer ${acc.token}` },
+        });
+        const { token: newToken, user } = res.data;
+
+        const updatedAcc = {
+          token: newToken || acc.token,
+          user: user || acc.user,
+        };
+        const newAccounts = { ...accounts, [activeAccount]: updatedAcc };
+        saveAccounts(newAccounts);
+
+        set({
+          accounts: newAccounts,
+          user: updatedAcc.user,
+          token: updatedAcc.token,
+        });
+      } catch {
+        await get().logout(activeAccount);
+      }
+    },
+
+    checkAuth: async () => {
+      const { activeAccount, accounts } = get();
+      if (!activeAccount) return;
+      const acc = accounts[activeAccount];
+      if (!acc) return;
+
+      try {
+        const res = await axios.get(`${API_URL}/me`, {
+          headers: { Authorization: `Bearer ${acc.token}` },
+        });
+        const updatedAcc = { token: acc.token, user: res.data };
+        const newAccounts = { ...accounts, [activeAccount]: updatedAcc };
+        saveAccounts(newAccounts);
+        set({
+          accounts: newAccounts,
+          user: res.data,
+          token: acc.token,
+        });
+      } catch {
+        await get().logout(activeAccount);
+      }
+    },
+
+    getUser: async () => {
+      const { activeAccount, accounts } = get();
+      if (!activeAccount) return null;
+      const acc = accounts[activeAccount];
+      if (!acc) return null;
+
+      try {
+        const res = await axios.get(`${API_URL}/me`, {
+          headers: { Authorization: `Bearer ${acc.token}` },
+        });
+        const updatedAcc = { token: acc.token, user: res.data };
+        const newAccounts = { ...accounts, [activeAccount]: updatedAcc };
+        saveAccounts(newAccounts);
+        set({ accounts: newAccounts, user: res.data });
+        return res.data;
+      } catch {
+        await get().logout(activeAccount);
+        return null;
+      }
+    },
+
+    getAccountsList: () => {
+      const { accounts } = get();
+      return Object.entries(accounts).map(([email, acc]) => ({
+        email,
+        name: acc.user.name,
+        role: acc.user.role,
+      }));
+    },
+  };
+});
 
 export default useAuthStore;
 
 export const useAuth = () => {
-  const { user, token, loading, error, register, login, logout, refresh, getUser, checkAuth } = useAuthStore();
-  return { user, token, loading, error, register, login, logout, refresh, getUser, checkAuth };
+  const {
+    user,
+    token,
+    loading,
+    error,
+    register,
+    login,
+    logout,
+    refresh,
+    getUser,
+    checkAuth,
+    switchAccount,
+    getAccountsList,
+    activeAccount,
+  } = useAuthStore();
+
+  return {
+    user,
+    token,
+    loading,
+    error,
+    register,
+    login,
+    logout,
+    refresh,
+    getUser,
+    checkAuth,
+    switchAccount,
+    getAccountsList,
+    activeAccount,
+  };
 };
