@@ -1,160 +1,188 @@
-import React, { useEffect, useState } from "react";
-import useAuth from "../../stores/authStore";
+import { useEffect, useState, useMemo } from "react";
 import { LogOut, Car, DollarSign, Clock, CheckCircle } from "lucide-react";
+import useAuth from "../../stores/authStore";
+import MyRides from "./myRides";
+import CreateRideForm from "./CreateRideForm";
+import api from "../../lib/api";
 
 interface Ride {
-  id: string;
-  pickup: string;
-  dropoff: string;
-  time: string;
-  fare: number;
-  status: "pending" | "ongoing" | "completed";
+  _id: string;
+  startLocation: string;
+  destination: string;
+  departureTime: string;
+  availableSeats: number;
+  price: number;
+  status: string;
 }
 
-// Temporary mock rides
-const mockRides: Ride[] = [
-  { id: "R-1001", pickup: "Downtown", dropoff: "Airport", time: "08:30", fare: 24.5, status: "completed" },
-  { id: "R-1002", pickup: "Mall", dropoff: "Stadium", time: "09:15", fare: 13.2, status: "completed" },
-  { id: "R-1003", pickup: "University", dropoff: "Library", time: "10:05", fare: 7.8, status: "pending" }
-];
-
-const DriverDashboard: React.FC = () => {
+const DriverDashboard = () => {
   const { user, logout } = useAuth();
-  const [online, setOnline] = useState(false);
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API fetch
-    const t = setTimeout(() => {
-      setRides(mockRides);
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
+    if (user?.role !== "driver") return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/ride/driver/rides");
+        setRides(res.data.rides || []);
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user?.role]);
 
-  const earningsToday = rides.filter(r => r.status === "completed").reduce((sum, r) => sum + r.fare, 0);
-  const nextRide = rides.find(r => r.status === "pending");
+  const completed = useMemo(() => rides.filter(r => r.status === "completed"), [rides]);
+  const earnings = useMemo(() => completed.reduce((s, r) => s + r.price, 0), [completed]);
+  const activeCount = useMemo(() => rides.filter(r => r.status === "active").length, [rides]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      {/* Header */}
-      <header className="flex justify-between items-center bg-white shadow-md rounded-xl p-4 mb-6">
-        <h1 className="text-2xl font-bold text-blue-600">Driver Dashboard 🚘</h1>
-        <div className="flex items-center gap-4">
-          <span className="font-medium text-gray-700">
-            Hi, {user?.name || "Driver"} <br />
-            <span className="text-xs text-green-600 font-semibold">Driver</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
+      <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
+        <Header userName={user?.name} onLogout={logout} />
+
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Total Rides"
+            value={rides.length}
+            icon={<Car className="size-5" />}
+            gradient="from-indigo-500 to-indigo-600"
+          />
+            <StatCard
+            label="Completed"
+            value={completed.length}
+            icon={<CheckCircle className="size-5" />}
+            gradient="from-emerald-500 to-emerald-600"
+          />
+          <StatCard
+            label="Earnings"
+            value={`$${earnings.toFixed(2)}`}
+            icon={<DollarSign className="size-5" />}
+            gradient="from-amber-500 to-amber-600"
+          />
+          <StatCard
+            label="Active Rides"
+            value={activeCount}
+            icon={<Clock className="size-5" />}
+            gradient="from-sky-500 to-sky-600"
+          />
+        </section>
+
+        <Panel title="Create a Ride">
+          <CreateRideForm onCreated={ride => setRides(r => [...r, ride])} />
+        </Panel>
+
+        <Panel title="My Rides">
+          {loading ? <SkeletonTable /> : <MyRides />}
+        </Panel>
+      </div>
+
+      {loading && (
+        <div className="fixed bottom-4 right-4 rounded-full bg-white/70 dark:bg-slate-800/70 backdrop-blur px-4 py-2 text-xs font-medium shadow-lg text-slate-600 dark:text-slate-300 flex items-center gap-2">
+          <span className="relative flex size-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+            <span className="relative inline-flex rounded-full size-2 bg-indigo-600" />
           </span>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition shadow-sm"
-          >
-            <LogOut size={18} /> Logout
-          </button>
+          Loading rides...
         </div>
-      </header>
-
-      {/* Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Status" value={online ? "Online" : "Offline"} color={online ? "text-green-600" : "text-gray-600"} icon={<Car />} />
-        <StatCard label="Completed Rides" value={rides.filter(r => r.status === "completed").length} icon={<CheckCircle />} />
-        <StatCard label="Earnings (Today)" value={`$${earningsToday.toFixed(2)}`} icon={<DollarSign />} />
-        <StatCard label="Pending Rides" value={rides.filter(r => r.status === "pending").length} icon={<Clock />} />
-      </section>
-
-      {/* Next Ride */}
-      <section className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Next Ride</h2>
-        {loading && <div>Loading...</div>}
-        {!loading && !nextRide && <div className="text-gray-500">No pending rides.</div>}
-        {!loading && nextRide && (
-          <div className="space-y-2">
-            <p><strong>ID:</strong> {nextRide.id}</p>
-            <p><strong>Pickup:</strong> {nextRide.pickup}</p>
-            <p><strong>Dropoff:</strong> {nextRide.dropoff}</p>
-            <p><strong>Time:</strong> {nextRide.time}</p>
-            <p><strong>Fare:</strong> ${nextRide.fare.toFixed(2)}</p>
-            <button
-              onClick={() =>
-                setRides(rs =>
-                  rs.map(r => r.id === nextRide.id ? { ...r, status: "ongoing" } : r)
-                )
-              }
-              className="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
-            >
-              Accept Ride
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* Recent Rides */}
-      <section className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-lg font-semibold mb-4">Recent Rides</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-3">ID</th>
-                <th className="p-3">Pickup</th>
-                <th className="p-3">Dropoff</th>
-                <th className="p-3">Time</th>
-                <th className="p-3">Fare</th>
-                <th className="p-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rides.map(r => (
-                <tr key={r.id} className="border-b">
-                  <td className="p-3">{r.id}</td>
-                  <td className="p-3">{r.pickup}</td>
-                  <td className="p-3">{r.dropoff}</td>
-                  <td className="p-3">{r.time}</td>
-                  <td className="p-3">${r.fare.toFixed(2)}</td>
-                  <td className="p-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(r.status)}`}>
-                      {r.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {!rides.length && !loading && (
-                <tr>
-                  <td colSpan={6} className="text-center p-4 text-gray-500">
-                    No rides yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      )}
     </div>
   );
 };
 
-const StatCard = ({ label, value, icon, color = "text-gray-800" }: { label: string; value: string | number; icon: React.ReactNode; color?: string }) => (
-  <div className="bg-white p-5 rounded-xl shadow-md flex items-center gap-4">
-    <div className="text-blue-600">{icon}</div>
-    <div>
-      <div className="text-sm text-gray-500">{label}</div>
-      <div className={`text-xl font-semibold ${color}`}>{value}</div>
+const Header = ({ userName, onLogout }: { userName?: string; onLogout: () => void }) => (
+  <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500 p-6 shadow-lg">
+    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white,transparent_60%)]" />
+    <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-sm">
+          Driver Dashboard
+        </h1>
+        <p className="text-indigo-100 text-sm mt-1">
+          Manage rides, track performance, optimize earnings.
+        </p>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <span className="block text-sm font-semibold text-white">{userName}</span>
+          <span className="text-[11px] uppercase tracking-wide font-medium text-indigo-100">
+            Driver
+          </span>
+        </div>
+        <button
+          onClick={onLogout}
+          className="group flex items-center gap-2 rounded-lg bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/25 active:scale-[0.97]"
+        >
+          <LogOut className="size-4 transition group-hover:rotate-6" />
+          Logout
+        </button>
+      </div>
     </div>
+  </header>
+);
+
+const StatCard = ({
+  label,
+  value,
+  icon,
+  gradient
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  gradient: string;
+}) => (
+  <div className="group relative rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-5 py-4 shadow-sm hover:shadow-md transition overflow-hidden">
+    <div
+      className={`absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br ${gradient} transition`}
+    />
+    <div className="flex items-center gap-4">
+      <div
+        className={`flex size-11 items-center justify-center rounded-lg bg-gradient-to-br ${gradient} text-white shadow-inner shadow-black/20`}
+      >
+        {icon}
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-medium">
+          {label}
+        </span>
+        <span className="text-lg font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
+          {value}
+        </span>
+      </div>
+    </div>
+    <div className="absolute right-3 top-3 h-6 w-6 rounded-full bg-slate-100/0 group-hover:bg-slate-100/50 dark:group-hover:bg-white/5 transition" />
   </div>
 );
 
-function statusBadge(status: Ride["status"]): string {
-  switch (status) {
-    case "pending":
-      return "bg-orange-100 text-orange-700";
-    case "ongoing":
-      return "bg-blue-100 text-blue-700";
-    case "completed":
-      return "bg-green-100 text-green-700";
-    default:
-      return "bg-gray-100 text-gray-600";
-  }
-}
+const Panel = ({
+  title,
+  children
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <section className="relative rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden">
+    <div className="absolute -right-10 -top-10 size-32 rounded-full bg-indigo-100 dark:bg-indigo-500/10 blur-2xl opacity-40 pointer-events-none" />
+    <h2 className="mb-5 text-lg font-semibold tracking-tight text-slate-800 dark:text-slate-100">
+      {title}
+    </h2>
+    <div className="relative">{children}</div>
+  </section>
+);
+
+const SkeletonTable = () => (
+  <div className="space-y-3">
+    {[...Array(4)].map((_, i) => (
+      <div
+        key={i}
+        className="h-12 w-full rounded-md bg-slate-100 dark:bg-slate-800 animate-pulse"
+      />
+    ))}
+  </div>
+);
 
 export default DriverDashboard;
