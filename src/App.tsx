@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import DriverDashboard from "./components/driver/DriverDashboard";
 import UpgradeToDriver  from "./components/driver/upgradeToDriver";
 import ProtectedRoute from "./components/guard/ProtectedRoute";
+import CreateRideForm from "./components/driver/CreateRideForm";
 import { useAuth } from "./stores/authStore";
 
 const AppRoutes = () => {
@@ -28,6 +29,7 @@ const AppRoutes = () => {
         <Route path="register" element={<Register />}></Route>
         <Route path="upgrade" element={<UpgradeToDriver />}></Route>
         <Route path="driver-dashboard" element={<DriverDashboard />}></Route>
+        <Route path="create-ride" element={<CreateRideForm />}></Route>
         <Route
           path="dashboard"
           element={
