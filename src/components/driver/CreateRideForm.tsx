@@ -104,7 +104,7 @@ const CreateRideForm: React.FC<Props> = ({ onCreated }) => {
         price: Number(form.price)
       };
 
-      const res = await api.post("/ride/createRide", payload);
+      const res = await api.post("api/ride/createRide", payload);
       const ride: Ride = res.data.ride;
 
       if (onCreated) onCreated(ride);
