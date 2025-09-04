@@ -34,7 +34,7 @@ const AvailableRides = () => {
             if (applyFilters) {
                 Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
             }
-            const res = await api.get('/ride/available-rides', { params });
+            const res = await api.get('api/ride/available-rides', { params });
             setRides(res.data.rides || []);
         } catch (e: any) {
             setError(e.response?.data?.message || 'Failed to load rides');
@@ -53,7 +53,7 @@ const AvailableRides = () => {
         setError(''); setSuccess('');
         try {
             const seats = bookingSeats[rideId] || 1;
-            await api.post(`/ride/book/${rideId}`, { seats });
+            await api.post(`api/ride/book/${rideId}`, { seats });
             setSuccess('Ride booked successfully');
             setRides(r =>
                 r.map(x =>
