@@ -44,7 +44,7 @@ const MyRides = () => {
     try {
       setError("");
       setLoading(true);
-      const res = await api.get("/ride/myRides");
+      const res = await api.get("api/ride/myRides");
       setRides(res.data.rides || []);
     } catch (e: any) {
       setError(e.response?.data?.message || "Failed to load rides");
