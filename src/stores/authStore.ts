@@ -64,7 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     register: async (name, email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await api.post("/auth/register", { name, email, password });
+        const res = await api.post("api/auth/register", { name, email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     login: async (email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await api.post("/auth/login", { email, password });
+        const res = await api.post("api/auth/login", { email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -140,7 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       });
 
       try {
-        await api.post("/auth/logout");
+        await api.post("api/auth/logout");
       } catch {
         // ignore
       }
