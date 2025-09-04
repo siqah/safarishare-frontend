@@ -28,7 +28,7 @@ const Bookings = () => {
     if(user?.role !== 'user') return;
     setLoading(true); setError(''); setSuccess('');
     try {
-      const res = await api.get('/ride/bookings');
+      const res = await api.get('api/ride/bookings');
       setBookings(res.data.bookings || []);
     } catch (e: any) {
       setError(e.response?.data?.message || 'Failed to load bookings');
@@ -40,7 +40,7 @@ const Bookings = () => {
   const cancelBooking = async (id: string) => {
     setError(''); setSuccess('');
     try {
-      await api.post(`/ride/cancel/${id}`);
+      await api.post(`api/ride/cancel/${id}`);
       setSuccess('Booking cancelled');
       setBookings(b => b.map(x => x._id === id ? { ...x, status: 'cancelled' } : x));
     } catch (e: any) {
