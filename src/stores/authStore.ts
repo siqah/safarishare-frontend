@@ -1,9 +1,5 @@
 import { create } from "zustand";
-import axios from "axios";
-
-axios.defaults.withCredentials = true;
-
-const API_URL = "http://localhost:10000/api/auth";
+import api from "../lib/api";
 
 interface User {
   id: string;
@@ -26,15 +22,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
 
-  register: (
-    name: string,
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean }>;
-  login: (
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean; user?: User; token?: string; email?: string }>;
+  register: (name: string, email: string, password: string) => Promise<{ success: boolean }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; user?: User; token?: string; email?: string }>;
   logout: (email?: string) => Promise<void>;
   switchAccount: (email: string) => void;
   refresh: () => Promise<void>;
@@ -75,11 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     register: async (name, email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await axios.post(`${API_URL}/register`, {
-          name,
-          email,
-          password,
-        });
+        const res = await api.post("/auth/register", { name, email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -107,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     login: async (email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await axios.post(`${API_URL}/login`, { email, password });
+        const res = await api.post("/auth/login", { email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -155,7 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       });
 
       try {
-        await axios.post(`${API_URL}/logout`);
+        await api.post("/auth/logout");
       } catch {
         // ignore
       }
@@ -178,15 +163,12 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return;
 
       try {
-        const res = await axios.get(`${API_URL}/refresh`, {
+        const res = await api.get("/refresh", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const { token: newToken, user } = res.data;
 
-        const updatedAcc = {
-          token: newToken || acc.token,
-          user: user || acc.user,
-        };
+        const updatedAcc = { token: newToken || acc.token, user: user || acc.user };
         const newAccounts = { ...accounts, [activeAccount]: updatedAcc };
         saveAccounts(newAccounts);
 
@@ -207,7 +189,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return;
 
       try {
-        const res = await axios.get(`${API_URL}/me`, {
+        const res = await api.get("/me", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const updatedAcc = { token: acc.token, user: res.data };
@@ -230,7 +212,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return null;
 
       try {
-        const res = await axios.get(`${API_URL}/me`, {
+        const res = await api.get("/me", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const updatedAcc = { token: acc.token, user: res.data };
