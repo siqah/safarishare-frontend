@@ -9,14 +9,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!login) return;
-    const res = await login(email, password);
-    if (res?.success) {
-      navigate("/dashboard"); 
-    }
-  };
+ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  if (!login) return;
+  const result = await login(email, password);  
+  if (result.success) {
+      navigate("/dashboard");
+    
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 px-4">
