@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Car, } from 'lucide-react';
-import  useAuth  from '../../stores/authStore';
-import { socketService } from '../../lib/socket';
+import { Car, Menu, X } from 'lucide-react';
+import useAuth from '../../stores/authStore';
+import { connectSocket, disconnectSocket } from '../../lib/socket';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -11,71 +11,77 @@ const Header: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      socketService.connect(user._id);
-     
+      connectSocket(user as any);
     } else {
-      socketService.disconnect();
+      disconnectSocket();
     }
-  }, [user, user?._id]);
+  }, [user?.role, user?.id]);
 
   useEffect(() => {
     setShowMobileMenu(false);
   }, [location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
-  const dashboardPath = user?.isDriver ? '/driver/dashboard' : '/rider/dashboard';
+  const dashboardPath = user?.role === 'driver' ? '/driver-dashboard' : '/dashboard';
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to={user ? dashboardPath : '/'} className="flex items-center space-x-2 cursor-pointer">
-        <div className="bg-blue-600 p-2 rounded-lg">
-          <Car className="w-6 h-6 text-white" />
-        </div>
-        <span className="text-xl font-bold text-gray-900">SafariShare</span>
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <Car className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">SafariShare</span>
           </Link>
+
           <nav className="hidden md:flex items-center space-x-4">
-              <button className="text-xl font-bold text-gray-900 bg-blue-600 p-2 rounded-md cursor-pointer">
-                <Link to={"/register"}>Register</Link>
-              </button>
-              <button className="text-xl font-bold text-gray-900 bg-blue-600 p-2 rounded-md cursor-pointer">
-                <Link to={"/login"}>Login</Link>
-              </button>
+            {!user && (
+              <>
+                <Link to="/register" className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md">Register</Link>
+                <Link to="/login" className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md">Login</Link>
+              </>
+            )}
+            {user && (
+              <>
+                <Link to="/rides" className={`text-sm font-medium px-3 py-2 rounded-md ${isActive('/rides') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`}>Search Rides</Link>
+                {user.role === 'driver' && (
+                  <>
+                    <Link to="/create-ride" className={`text-sm font-medium px-3 py-2 rounded-md ${isActive('/create-ride') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`}>Offer a Ride</Link>
+                    <Link to="/driver-dashboard" className={`text-sm font-medium px-3 py-2 rounded-md ${isActive('/driver-dashboard') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`}>My Rides</Link>
+                  </>
+                )}
+                {user.role !== 'driver' && (
+                  <Link to="/bookings" className={`text-sm font-medium px-3 py-2 rounded-md ${isActive('/bookings') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`}>My Bookings</Link>
+                )}
+                <Link to="/profile" className={`text-sm font-medium px-3 py-2 rounded-md ${isActive('/profile') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'}`}>Profile</Link>
+              </>
+            )}
           </nav>
-    </div>
+
+          {/* Mobile menu toggle */}
+            <button
+              className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+              onClick={() => setShowMobileMenu(s => !s)}
+              aria-label="Toggle menu"
+            >
+              {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+        </div>
 
         {showMobileMenu && user && (
           <div className="md:hidden border-t border-gray-200 py-4">
             <div className="space-y-2">
-              <Link to="/search" onClick={() => setShowMobileMenu(false)} className={`${isActive('/search') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                Search Rides
-              </Link>
-              {user.isDriver ? (
+              <Link to="/rides" onClick={() => setShowMobileMenu(false)} className={`${isActive('/rides') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>Search Rides</Link>
+              {user.role === 'driver' ? (
                 <>
-                  <Link to="/offer" onClick={() => setShowMobileMenu(false)} className={`${isActive('/offer') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                    Offer a Ride
-                  </Link>
-                  <Link to="/my-rides" onClick={() => setShowMobileMenu(false)} className={`${isActive('/my-rides') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                    My Rides
-                  </Link>
+                  <Link to="/create-ride" onClick={() => setShowMobileMenu(false)} className={`${isActive('/create-ride') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>Offer a Ride</Link>
+                  <Link to="/driver-dashboard" onClick={() => setShowMobileMenu(false)} className={`${isActive('/driver-dashboard') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>My Rides</Link>
                 </>
               ) : (
-                <>
-                  <Link to="/my-bookings" onClick={() => setShowMobileMenu(false)} className={`${isActive('/my-bookings') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                    My Bookings
-                  </Link>
-                </>
+                <Link to="/bookings" onClick={() => setShowMobileMenu(false)} className={`${isActive('/bookings') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>My Bookings</Link>
               )}
-              <Link to="/messages" onClick={() => setShowMobileMenu(false)} className={`${isActive('/messages') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                Messages
-              </Link>
-              <Link to={user.isDriver ? '/driver/profile' : '/rider/profile'} onClick={() => setShowMobileMenu(false)} className={`${isActive('/profile') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                Profile
-              </Link>
-              <Link to="/settings" onClick={() => setShowMobileMenu(false)} className={`${isActive('/settings') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>
-                Settings
-              </Link>
+              <Link to="/profile" onClick={() => setShowMobileMenu(false)} className={`${isActive('/profile') ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'} block px-3 py-2 text-sm font-medium rounded-md`}>Profile</Link>
             </div>
           </div>
         )}
