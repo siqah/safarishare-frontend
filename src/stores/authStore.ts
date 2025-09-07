@@ -49,7 +49,17 @@ const saveAccounts = (accounts: Record<string, Account>) => {
 
 export const useAuthStore = create<AuthState>((set, get) => {
   const accounts = loadAccounts();
-  const activeAccount = sessionStorage.getItem("activeAccount");
+  let activeAccount = sessionStorage.getItem("activeAccount");
+
+  // Auto-select account if only one exists (prevents refresh lockout)
+  if (!activeAccount) {
+    const keys = Object.keys(accounts);
+    if (keys.length === 1) {
+      activeAccount = keys[0];
+      sessionStorage.setItem("activeAccount", activeAccount);
+    }
+  }
+
   const currentAcc = activeAccount ? accounts[activeAccount] : null;
 
   return {
@@ -64,7 +74,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     register: async (name, email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await api.post("api/auth/register", { name, email, password });
+        const res = await api.post("/api/auth/register", { name, email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -92,7 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     login: async (email, password) => {
       set({ loading: true, error: null });
       try {
-        const res = await api.post("api/auth/login", { email, password });
+        const res = await api.post("/api/auth/login", { email, password });
         const { token, user } = res.data;
 
         const newAccounts = { ...get().accounts, [email]: { token, user } };
@@ -117,7 +127,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
-    // Logout (only remove one account)
+    // Logout
     logout: async (email?: string) => {
       const target = email || get().activeAccount;
       if (!target) return;
@@ -140,13 +150,13 @@ export const useAuthStore = create<AuthState>((set, get) => {
       });
 
       try {
-        await api.post("api/auth/logout");
+        await api.post("/api/auth/logout");
       } catch {
         // ignore
       }
     },
 
-    // Switch account (tab-specific)
+    // Switch account
     switchAccount: (email: string) => {
       const acc = get().accounts[email];
       if (!acc) return;
@@ -154,7 +164,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       set({ activeAccount: email, user: acc.user, token: acc.token });
     },
 
-    // Refresh token for active account
+    // Refresh token
     refresh: async () => {
       const { activeAccount, accounts } = get();
       if (!activeAccount) return;
@@ -163,7 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return;
 
       try {
-        const res = await api.get("/refresh", {
+        const res = await api.get("/api/auth/refresh", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const { token: newToken, user } = res.data;
@@ -182,6 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
+    // Check auth
     checkAuth: async () => {
       const { activeAccount, accounts } = get();
       if (!activeAccount) return;
@@ -189,7 +200,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return;
 
       try {
-        const res = await api.get("/me", {
+        const res = await api.get("/api/auth/me", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const updatedAcc = { token: acc.token, user: res.data };
@@ -205,6 +216,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
+    // Get user
     getUser: async () => {
       const { activeAccount, accounts } = get();
       if (!activeAccount) return null;
@@ -212,7 +224,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       if (!acc) return null;
 
       try {
-        const res = await api.get("/me", {
+        const res = await api.get("/api/auth/me", {
           headers: { Authorization: `Bearer ${acc.token}` },
         });
         const updatedAcc = { token: acc.token, user: res.data };
@@ -226,6 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       }
     },
 
+    // Get list of accounts
     getAccountsList: () => {
       const { accounts } = get();
       return Object.entries(accounts).map(([email, acc]) => ({

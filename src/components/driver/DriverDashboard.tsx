@@ -25,7 +25,7 @@ const DriverDashboard = () => {
     (async () => {
       try {
         setLoading(true);
-        const res = await api.get("api/ride/driver/rides");
+        const res = await api.get("/api/ride/driver/rides");
         setRides(res.data.rides || []);
       } catch {
         // silent
