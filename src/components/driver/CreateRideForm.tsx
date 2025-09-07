@@ -223,10 +223,10 @@ const CreateRideForm: React.FC<Props> = ({ onCreated }) => {
             />
           </div>
           <div>
-            <label className={labelBase}>Price (USD)</label>
+            <label className={labelBase}>Price (KES)</label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs text-blue-400">
-                $
+                KES
               </span>
               <input
                 type="number"
@@ -236,7 +236,7 @@ const CreateRideForm: React.FC<Props> = ({ onCreated }) => {
                 value={form.price}
                 onChange={onChange}
                 className={`${inputBase} pl-6`}
-                placeholder="e.g. 15.00"
+                placeholder="....150.00"
                 required
               />
             </div>
