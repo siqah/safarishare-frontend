@@ -20,7 +20,6 @@ import { useAuth } from "./stores/authStore";
 const AppRoutes = () => {
   const { checkAuth } = useAuth();
 
- 
 
   useEffect(() => {
     checkAuth(); // ✅ restore session on refresh
