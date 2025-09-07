@@ -30,21 +30,21 @@ const Hero: React.FC = () => {
               <div className="text-center">
                 <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
                   <Users className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                  <div className="text-2xl font-bold">2M+</div>
+                  <div className="text-2xl font-bold">+++</div>
                   <div className="text-sm text-blue-200">Happy Users</div>
                 </div>
               </div>
               <div className="text-center">
                 <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
                   <Car className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                  <div className="text-2xl font-bold">10K+</div>
+                  <div className="text-2xl font-bold">+++</div>
                   <div className="text-sm text-blue-200">Daily Rides</div>
                 </div>
               </div>
               <div className="text-center">
                 <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
                   <Leaf className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-                  <div className="text-2xl font-bold">50%</div>
+                  <div className="text-2xl font-bold">+++%</div>
                   <div className="text-sm text-blue-200">CO2 Saved</div>
                 </div>
               </div>

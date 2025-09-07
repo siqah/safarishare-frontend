@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { LogOut, Car, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { LogOut, Car, Clock, CheckCircle } from "lucide-react";
 import useAuth from "../../stores/authStore";
 import MyRides from "./myRides";
 import CreateRideForm from "./CreateRideForm";
@@ -14,6 +14,23 @@ interface Ride {
   price: number;
   status: string;
 }
+
+ const KShIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 4v16" />
+    <path d="M6 12h5.5a3.5 3.5 0 0 0 0-7H6" />
+    <path d="M11.5 12H9l7 8" />
+    <path d="M11 20l5.5-6" />
+  </svg>
+);
 
 const DriverDashboard = () => {
   const { user, logout } = useAuth();
@@ -60,7 +77,7 @@ const DriverDashboard = () => {
           <StatCard
             label="Earnings"
             value={`$${earnings.toFixed(2)}`}
-            icon={<DollarSign className="size-5" />}
+            icon={<KShIcon className="size-5" />}
             gradient="from-amber-500 to-amber-600"
           />
           <StatCard
