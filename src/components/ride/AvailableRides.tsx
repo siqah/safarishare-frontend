@@ -204,7 +204,7 @@ const AvailableRides = () => {
                                                 {r.availableSeats}
                                             </td>
                                             <td className="px-4 py-3 text-right font-semibold text-blue-900">
-                                                ${r.price.toFixed(2)}
+                                                KES:{r.price.toFixed(2)}
                                             </td>
                                             <td className="px-4 py-3 text-blue-700">
                                                 {r.driver?.name || '—'}

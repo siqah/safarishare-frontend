@@ -76,7 +76,7 @@ const DriverDashboard = () => {
           />
           <StatCard
             label="Earnings"
-            value={`$${earnings.toFixed(2)}`}
+            value={`$Kes${earnings.toFixed(2)}`}
             icon={<KShIcon className="size-5" />}
             gradient="from-amber-500 to-amber-600"
           />
