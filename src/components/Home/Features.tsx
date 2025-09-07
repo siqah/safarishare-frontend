@@ -1,7 +1,25 @@
 import React from 'react';
-import { Shield, DollarSign, Users, Leaf, Clock, MessageCircle } from 'lucide-react';
+import { Shield, Users, Leaf, Clock, MessageCircle } from 'lucide-react';
+
 
 const Features: React.FC = () => {
+
+   const KShIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M6 4v16" />
+    <path d="M6 12h5.5a3.5 3.5 0 0 0 0-7H6" />
+    <path d="M11.5 12H9l7 8" />
+    <path d="M11 20l5.5-6" />
+  </svg>
+);
   const features = [
     {
       icon: Shield,
@@ -10,7 +28,7 @@ const Features: React.FC = () => {
       color: 'bg-green-100 text-green-600',
     },
     {
-      icon: DollarSign,
+      icon: KShIcon,
       title: 'Save Money',
       description: 'Split fuel costs and travel expenses with fellow passengers.',
       color: 'bg-yellow-100 text-yellow-600',
@@ -49,7 +67,7 @@ const Features: React.FC = () => {
             Why choose SafariShare?
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Join millions of people who are already sharing rides, saving money, and protecting the environment.
+            Join  people who are already sharing rides, saving money, and protecting the environment.
           </p>
         </div>
 

@@ -128,33 +128,31 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     // Logout
-    logout: async (email?: string) => {
-      const target = email || get().activeAccount;
-      if (!target) return;
+  logout: async (email?: string) => {
+  const target = email ?? get().activeAccount;
+  if (!target) return;
 
-      const newAccounts = { ...get().accounts };
-      delete newAccounts[target];
-      saveAccounts(newAccounts);
+  const accounts = { ...get().accounts };
+  delete accounts[target];
+  saveAccounts(accounts);
 
-      let newActive = get().activeAccount;
-      if (target === newActive) {
-        sessionStorage.removeItem("activeAccount");
-        newActive = null;
-      }
+  let activeAccount = get().activeAccount;
+  if (target === activeAccount) {
+    sessionStorage.removeItem("activeAccount");
+    activeAccount = null;
+  }
 
-      set({
-        accounts: newAccounts,
-        activeAccount: newActive,
-        user: newActive ? newAccounts[newActive]?.user : null,
-        token: newActive ? newAccounts[newActive]?.token : null,
-      });
+  set({
+    accounts,
+    activeAccount,
+    user: activeAccount ? accounts[activeAccount].user : null,
+    token: activeAccount ? accounts[activeAccount].token : null,
+  });
 
-      try {
-        await api.post("/api/auth/logout");
-      } catch {
-        // ignore
-      }
-    },
+  // 👇 simple redirect
+  window.location.href = "/";
+},
+
 
     // Switch account
     switchAccount: (email: string) => {
