@@ -25,7 +25,7 @@ const statusStyles: Record<string, string> = {
 
 const SkeletonRow = () => (
   <tr className="animate-pulse">
-    {[...Array(6)].map((_, i) => (
+    {[...Array(7)].map((_, i) => (
       <td key={i} className="p-3">
         <div className="h-3 w-24 rounded bg-gray-200 dark:bg-gray-700" />
       </td>
@@ -53,9 +53,20 @@ const MyRides = () => {
     }
   };
 
+  const cancelRide = async (id: string) => {
+    if (!token) return;
+    try {
+      await api.put(`/api/rides/${id}/cancel`);
+      setRides(prev =>
+        prev.map(r => (r._id === id ? { ...r, status: "canceled" } : r))
+      );
+    } catch (e: any) {
+      alert(e.response?.data?.message || "Failed to cancel ride");
+    }
+  };
+
   useEffect(() => {
     fetchRides();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, user?.role]);
 
   const hasRides = useMemo(() => rides.length > 0, [rides]);
@@ -119,6 +130,7 @@ const MyRides = () => {
                 <th className="px-4 py-3 text-center">Seats</th>
                 <th className="px-4 py-3 text-right">Price</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -128,7 +140,7 @@ const MyRides = () => {
               {!loading && !hasRides && !error && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No rides yet. Publish a ride to get started.
@@ -180,6 +192,16 @@ const MyRides = () => {
                           {r.status}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        {r.status === "active" && (
+                          <button
+                            onClick={() => cancelRide(r._id)}
+                            className="rounded-md bg-rose-500 px-3 py-1 text-xs font-medium text-white hover:bg-rose-600"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -190,7 +212,11 @@ const MyRides = () => {
           <div className="flex justify-between border-t border-gray-100 bg-gray-50 px-4 py-2 text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">
             <span>Total rides: {rides.length}</span>
             <span>
-              Updated {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              Updated{" "}
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </span>
           </div>
         )}
