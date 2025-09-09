@@ -56,7 +56,7 @@ const MyRides = () => {
   const cancelRide = async (id: string) => {
     if (!token) return;
     try {
-      await api.put(`/api/rides/${id}/cancel`);
+      await api.put(`/api/ride/${id}/cancel`);
       setRides(prev =>
         prev.map(r => (r._id === id ? { ...r, status: "canceled" } : r))
       );
