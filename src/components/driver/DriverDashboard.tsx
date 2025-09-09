@@ -60,6 +60,7 @@ const DriverDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
         <Header userName={user?.name} onLogout={logout} />
+        
 
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
