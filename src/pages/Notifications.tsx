@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import api from '../lib/api';
+import { getErrorMessage } from '../lib/errors';
+
+type Item = { _id: string; title: string; message: string; createdAt?: string };
 
 const NotificationsPage: React.FC = () => {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [error, setError] = useState('');
   useEffect(() => {
     (async () => {
       try {
         const res = await api.get('api/notifications');
         setItems(res.data.notifications || []);
-      } catch (e: any) {
-        setError(e.response?.data?.message || 'Failed to load');
+      } catch (e: unknown) {
+        setError(getErrorMessage(e, 'Failed to load'));
       }
     })();
   }, []);

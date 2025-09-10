@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../lib/api';
 import useAuth from '../../stores/authStore';
+import { getErrorMessage } from '../../lib/errors';
 
 interface Ride {
     _id: string;
@@ -30,14 +31,17 @@ const AvailableRides = () => {
         if (user?.role !== 'user') return;
         setLoading(true); setError(''); setSuccess('');
         try {
-            let params: any = {};
-            if (applyFilters) {
-                Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
-            }
+                        const params: Record<string, string> = {};
+                        if (applyFilters) {
+                                (Object.keys(filters) as Array<keyof typeof filters>).forEach((k) => {
+                                    const v = filters[k];
+                                    if (v) params[k] = v;
+                                });
+                        }
             const res = await api.get('api/ride/available-rides', { params });
             setRides(res.data.rides || []);
-        } catch (e: any) {
-            setError(e.response?.data?.message || 'Failed to load rides');
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, 'Failed to load rides'));
         } finally {
             setLoading(false);
         }
@@ -60,8 +64,8 @@ const AvailableRides = () => {
                     x._id === rideId ? { ...x, availableSeats: x.availableSeats - seats } : x
                 )
             );
-        } catch (e: any) {
-            setError(e.response?.data?.message || 'Booking failed');
+        } catch (e: unknown) {
+            setError(getErrorMessage(e, 'Booking failed'));
         }
     };
 

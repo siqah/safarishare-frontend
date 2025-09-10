@@ -1,6 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "../../lib/api";
+import { socket } from "../../lib/socket";
 import useAuth from "../../stores/authStore";
+import { getErrorMessage } from "../../lib/errors";
 
 interface Ride {
   _id: string;
@@ -39,19 +41,19 @@ const MyRides = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchRides = async () => {
+  const fetchRides = useCallback(async () => {
     if (!token || user?.role !== "driver") return;
     try {
       setError("");
       setLoading(true);
       const res = await api.get("api/ride/myRides");
       setRides(res.data.rides || []);
-    } catch (e: any) {
-      setError(e.response?.data?.message || "Failed to load rides");
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "Failed to load rides"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, user?.role]);
 
   const cancelRide = async (id: string) => {
     if (!token) return;
@@ -60,14 +62,28 @@ const MyRides = () => {
       setRides(prev =>
         prev.map(r => (r._id === id ? { ...r, status: "canceled" } : r))
       );
-    } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to cancel ride");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "Failed to cancel ride"));
     }
   };
 
   useEffect(() => {
     fetchRides();
-  }, [token, user?.role]);
+  }, [fetchRides]);
+
+  // Real-time seat updates from notifications
+  type SeatDeltaPayload = { rideId?: string; seatsDelta?: number };
+  useEffect(() => {
+    if (user?.role !== 'driver') return;
+    const handler = (payload: SeatDeltaPayload) => {
+      if (!payload?.rideId || typeof payload?.seatsDelta !== 'number') return;
+      setRides(prev => prev.map(r => r._id === payload.rideId ? { ...r, availableSeats: Math.max(0, r.availableSeats + payload.seatsDelta!) } : r));
+    };
+    socket.on('notification', handler);
+    return () => {
+      socket.off('notification', handler);
+    };
+  }, [user?.role]);
 
   const hasRides = useMemo(() => rides.length > 0, [rides]);
 

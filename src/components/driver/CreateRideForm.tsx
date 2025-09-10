@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import useAuth from "../../stores/authStore";
 import api from "../../lib/api";
+import { getErrorMessage } from "../../lib/errors";
 
 interface Ride {
   _id: string;
@@ -73,9 +74,7 @@ const CreateRideForm: React.FC<Props> = ({ onCreated }) => {
     return errs;
   };
 
-  const disabled = useMemo(() => {
-    return submitting || validate().length > 0;
-  }, [submitting, form]);
+  const disabled = submitting || validate().length > 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,8 +116,8 @@ const CreateRideForm: React.FC<Props> = ({ onCreated }) => {
         availableSeats: "",
         price: ""
       });
-    } catch (err: any) {
-      setServerError(err.response?.data?.message || "Failed to create ride");
+    } catch (err: unknown) {
+      setServerError(getErrorMessage(err, "Failed to create ride"));
     } finally {
       setSubmitting(false);
     }

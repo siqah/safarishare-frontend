@@ -4,6 +4,7 @@ import useAuth from "../../stores/authStore";
 import MyRides from "./myRides";
 import CreateRideForm from "./CreateRideForm";
 import api from "../../lib/api";
+import NotificationBell from "../Notification/NotificationBell";
 
 interface Ride {
   _id: string;
@@ -58,10 +59,9 @@ const DriverDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
-      <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
+  <div className="mx-auto max-w-7xl px-4 py-6 space-y-8">
         <Header userName={user?.name} onLogout={logout} />
         
-
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Rides"
@@ -124,6 +124,8 @@ const Header = ({ userName, onLogout }: { userName?: string; onLogout: () => voi
         </p>
       </div>
       <div className="flex items-center gap-4">
+        {/* Notifications */}
+        <NotificationBell />
         <div className="text-right">
           <span className="block text-sm font-semibold text-white">{userName}</span>
           <span className="text-[11px] uppercase tracking-wide font-medium text-indigo-100">
