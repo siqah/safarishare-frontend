@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Car, Menu, X } from 'lucide-react';
 import useAuth from '../../stores/authStore';
-import { connectSocket, disconnectSocket } from '../../lib/socket';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -10,18 +9,8 @@ const Header: React.FC = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      connectSocket(user as any);
-    } else {
-      disconnectSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
     setShowMobileMenu(false);
   }, [location.pathname]);
-
-  const isActive = (path: string) => location.pathname === path;
   const dashboardPath = user?.role === 'driver' ? '/driver-dashboard' : '/dashboard';
 
   return (

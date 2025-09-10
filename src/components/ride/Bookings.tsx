@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../lib/api';
 import useAuth from '../../stores/authStore';
+import { getErrorMessage } from '../../lib/errors';
 
 interface Booking {
   _id: string;
@@ -30,8 +31,8 @@ const Bookings = () => {
     try {
       const res = await api.get('api/ride/bookings');
       setBookings(res.data.bookings || []);
-    } catch (e: any) {
-      setError(e.response?.data?.message || 'Failed to load bookings');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to load bookings'));
     } finally { setLoading(false); }
   }, [user?.role]);
 
@@ -43,8 +44,8 @@ const Bookings = () => {
       await api.post(`api/ride/cancel/${id}`);
       setSuccess('Booking cancelled');
       setBookings(b => b.map(x => x._id === id ? { ...x, status: 'cancelled' } : x));
-    } catch (e: any) {
-      setError(e.response?.data?.message || 'Cancel failed');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Cancel failed'));
     }
   };
 
