@@ -25,7 +25,7 @@ interface User {
 const StatCard: React.FC<{
   title: string;
   value: number;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   change?: number;
   changeType?: 'increase' | 'decrease';
 }> = ({ title, value, icon: Icon, change, changeType }) => (

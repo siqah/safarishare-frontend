@@ -6,7 +6,7 @@ interface User {
   email: string;
   name: string;
   role: string;
-  driverProfile: any;
+  driverProfile: unknown;
 }
 
 interface Account {
@@ -89,10 +89,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
           loading: false,
         });
         return { success: true };
-      } catch (err: any) {
+    } catch (err: unknown) {
         set({
           loading: false,
-          error: err.response?.data?.message || "Registration failed",
+      error: (typeof err === 'object' && err && (err as { response?: { data?: { message?: string } } }).response?.data?.message) || "Registration failed",
         });
         return { success: false };
       }
@@ -118,10 +118,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
         });
 
         return { success: true, user, token };
-      } catch (err: any) {
+    } catch (err: unknown) {
         set({
           loading: false,
-          error: err.response?.data?.message || "Login failed",
+      error: (typeof err === 'object' && err && (err as { response?: { data?: { message?: string } } }).response?.data?.message) || "Login failed",
         });
         return { success: false };
       }

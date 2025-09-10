@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, MessageCircle, Phone, User } from 'lucide-react';
 import api from '../../lib/api';
-import { Message } from '../../stores/chatStore';
-import {socketService} from '../../lib/socket';
+import { getErrorMessage } from '../../lib/errors';
+import { socket } from '../../lib/socket';
+
+export interface Message {
+  _id?: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+  read?: boolean;
+}
 
 interface PassengerUser {
   _id: string;
@@ -117,7 +125,6 @@ const MessagingModal: React.FC<MessagingModalProps> = ({ booking, currentUser, o
       setMessages(prev => [...prev, sentMessage]);
       
       // Emit via socket for real-time delivery
-      const socket = socketService.getSocket();
       if (socket?.connected) {
         socket.emit('send-message', {
           receiverId: isDriver ? booking.passengerId._id : booking.rideId.driverId?._id,
@@ -127,10 +134,9 @@ const MessagingModal: React.FC<MessagingModalProps> = ({ booking, currentUser, o
       }
       
       setNewMessage('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending message:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to send message. Please try again.';
-      alert(errorMessage);
+      alert(getErrorMessage(error, 'Failed to send message. Please try again.'));
     } finally {
       setSending(false);
     }
