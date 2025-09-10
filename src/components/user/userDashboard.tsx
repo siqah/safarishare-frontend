@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../../stores/authStore";
 import { LogOut, Car, Search, Menu, X } from "lucide-react";
+import NotificationBell from "../Notification/NotificationBell";
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
@@ -17,7 +18,6 @@ const UserDashboard = () => {
       <header className="bg-white shadow-md">
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
           <h1 className="text-xl sm:text-2xl font-bold text-blue-600">
             SafariShare 🚗
           </h1>
@@ -42,6 +42,9 @@ const UserDashboard = () => {
                 </span>
               </p>
             </div>
+
+            {/* Notifications */}
+            <NotificationBell />
 
             {user?.role !== "driver" && (
               <Link
@@ -75,6 +78,10 @@ const UserDashboard = () => {
               >
                 <LogOut size={16} /> Logout
               </button>
+            </div>
+            {/* Notifications (mobile) */}
+            <div className="mt-3">
+              <NotificationBell />
             </div>
             {user?.role !== "driver" && (
               <Link
