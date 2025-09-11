@@ -57,14 +57,18 @@ const AvailableRides = () => {
         setError(''); setSuccess('');
         try {
             const seats = bookingSeats[rideId] || 1;
-            await api.post(`api/ride/book/${rideId}`, { seats });
+            const res = await api.post(`api/ride/book/${rideId}`, { seats });
+            // eslint-disable-next-line no-console
+            console.log('Book success', res.status, res.data);
             setSuccess('Ride booked successfully');
             setRides(r =>
                 r.map(x =>
                     x._id === rideId ? { ...x, availableSeats: x.availableSeats - seats } : x
                 )
             );
-        } catch (e: unknown) {
+        } catch (e: any) {
+            // eslint-disable-next-line no-console
+            console.error('Book ride error full:', e?.response?.status, e?.response?.data || e);
             setError(getErrorMessage(e, 'Booking failed'));
         }
     };

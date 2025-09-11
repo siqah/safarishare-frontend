@@ -12,6 +12,12 @@ interface ChatMessage {
   createdAt: string;
 }
 
+interface Participant {
+  id: string;
+  name?: string;
+  email?: string;
+}
+
 interface Props {
   rideId: string;
   passengerId?: string; // required if driver initiates
@@ -27,6 +33,8 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState<number | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [activePassengerId, setActivePassengerId] = useState<string | undefined>(passengerId);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -34,7 +42,7 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     if (!rideId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/messages/ride/${rideId}`, { params: { page: pg, limit: PAGE_SIZE } });
+  const res = await api.get(`api/messages/ride/${rideId}`, { params: { page: pg, limit: PAGE_SIZE } });
       const { messages: list, total: t } = res.data;
       setTotal(t);
       if (pg === 1) setMessages(list);
@@ -50,6 +58,14 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
 
   useEffect(() => { loadMessages(1); }, [loadMessages]);
 
+  // Fetch participants if user is driver
+  useEffect(() => {
+    if (!user || user.role !== 'driver') return;
+    api.get(`api/messages/ride/${rideId}/participants`).then(res => {
+      setParticipants(res.data.participants || []);
+    }).catch(() => {/* ignore */});
+  }, [user, rideId]);
+
   useEffect(() => {
     const handler = (m: any) => {
       if (m.rideId !== rideId) return;
@@ -64,14 +80,16 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     if (!rideId || !user) return;
   const unreadFromOther = messages.some(m => m.recipient === user.id);
     if (unreadFromOther) {
-      api.post(`/messages/ride/${rideId}/read`).catch(() => {});
+  api.post(`api/messages/ride/${rideId}/read`).catch(() => {});
     }
   }, [messages, rideId, user]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+    // For driver: must have a passenger selected
+    if (user?.role === 'driver' && !activePassengerId) return;
     try {
-      await api.post(`/messages/ride/${rideId}`, { body: input.trim(), passengerId });
+  await api.post(`api/messages/ride/${rideId}`, { body: input.trim(), passengerId: activePassengerId || passengerId });
       setInput('');
     } catch {
       // ignore
@@ -93,8 +111,20 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white w-full max-w-md h-[520px] flex flex-col rounded shadow">
-        <div className="px-4 py-2 border-b flex items-center justify-between">
+        <div className="px-4 py-2 border-b flex items-center justify-between gap-3">
           <h3 className="font-semibold text-sm">Ride Chat</h3>
+          {user?.role === 'driver' && participants.length > 0 && (
+            <select
+              value={activePassengerId || ''}
+              onChange={e => setActivePassengerId(e.target.value || undefined)}
+              className="text-xs border rounded px-1 py-0.5"
+            >
+              <option value="">Select passenger…</option>
+              {participants.map(p => (
+                <option key={p.id} value={p.id}>{p.name || p.email || p.id}</option>
+              ))}
+            </select>
+          )}
           {onClose && <button onClick={onClose} className="text-xs text-gray-500">Close</button>}
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
@@ -121,7 +151,7 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
             className="flex-1 border rounded px-3 py-2 text-sm"
             placeholder="Type a message..."
           />
-          <button onClick={sendMessage} disabled={!input.trim()} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
+          <button onClick={sendMessage} disabled={!input.trim() || (user?.role === 'driver' && !activePassengerId)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
         </div>
       </div>
     </div>
