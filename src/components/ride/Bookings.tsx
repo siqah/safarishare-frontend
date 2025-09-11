@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '../../lib/api';
 import useAuth from '../../stores/authStore';
 import { getErrorMessage } from '../../lib/errors';
+import RideChat from '../messaging/RideChat';
 
 interface Booking {
   _id: string;
@@ -24,6 +25,7 @@ const Bookings = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [chatRideId, setChatRideId] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
     if(user?.role !== 'user') return;
@@ -85,14 +87,35 @@ const Bookings = () => {
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${b.status === 'booked' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'}`}>{b.status}</span>
                 </td>
-                <td className="px-4 py-3 text-right">
-                  {b.status === 'booked' && <button onClick={() => cancelBooking(b._id)} className="rounded bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500">Cancel</button>}
+                <td className="px-4 py-3 flex gap-2 justify-end">
+                  {b.status === 'booked' && (
+                    <>
+                      <button
+                        onClick={() => setChatRideId(b.ride._id)}
+                        className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                      >
+                        Chat
+                      </button>
+                      <button
+                        onClick={() => cancelBooking(b._id)}
+                        className="rounded bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    {chatRideId && (
+      <RideChat
+        rideId={chatRideId}
+        onClose={() => setChatRideId(null)}
+      />
+    )}
     </div>
   );
 };
