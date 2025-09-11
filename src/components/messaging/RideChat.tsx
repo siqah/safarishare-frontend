@@ -1,0 +1,131 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import api from '../../lib/api';
+import { socket } from '../../lib/socket';
+import useAuth from '../../stores/authStore';
+
+interface ChatMessage {
+  id: string;
+  rideId: string;
+  sender: string;
+  recipient: string;
+  body: string;
+  createdAt: string;
+}
+
+interface Props {
+  rideId: string;
+  passengerId?: string; // required if driver initiates
+  onClose?: () => void;
+}
+
+const PAGE_SIZE = 30;
+
+const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState<number | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+
+  const loadMessages = useCallback(async (pg: number) => {
+    if (!rideId) return;
+    setLoading(true);
+    try {
+      const res = await api.get(`/messages/ride/${rideId}`, { params: { page: pg, limit: PAGE_SIZE } });
+      const { messages: list, total: t } = res.data;
+      setTotal(t);
+      if (pg === 1) setMessages(list);
+      else setMessages(prev => [...list, ...prev]);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Load messages failed', e);
+    } finally {
+      setLoading(false);
+      loadingMoreRef.current = false;
+    }
+  }, [rideId]);
+
+  useEffect(() => { loadMessages(1); }, [loadMessages]);
+
+  useEffect(() => {
+    const handler = (m: any) => {
+      if (m.rideId !== rideId) return;
+      setMessages(prev => [...prev, m]);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
+    };
+    socket.on('message:new', handler);
+    return () => { socket.off('message:new', handler); };
+  }, [rideId]);
+
+  useEffect(() => {
+    if (!rideId || !user) return;
+  const unreadFromOther = messages.some(m => m.recipient === user.id);
+    if (unreadFromOther) {
+      api.post(`/messages/ride/${rideId}/read`).catch(() => {});
+    }
+  }, [messages, rideId, user]);
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    try {
+      await api.post(`/messages/ride/${rideId}`, { body: input.trim(), passengerId });
+      setInput('');
+    } catch {
+      // ignore
+    }
+  };
+
+  const canLoadMore = total !== null && messages.length < total;
+
+  const handleScroll: React.UIEventHandler<HTMLDivElement> = e => {
+    const el = e.currentTarget;
+    if (el.scrollTop < 60 && canLoadMore && !loadingMoreRef.current) {
+      loadingMoreRef.current = true;
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadMessages(nextPage);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white w-full max-w-md h-[520px] flex flex-col rounded shadow">
+        <div className="px-4 py-2 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Ride Chat</h3>
+          {onClose && <button onClick={onClose} className="text-xs text-gray-500">Close</button>}
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
+          {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
+          {canLoadMore && (
+            <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
+          )}
+          {messages.map(m => {
+            const mine = user && m.sender === user.id;
+            return (
+              <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 ${mine ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
+                <div>{m.body}</div>
+                <div className="mt-1 text-[10px] opacity-70">{new Date(m.createdAt).toLocaleTimeString()}</div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+        <div className="p-3 border-t flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), sendMessage())}
+            className="flex-1 border rounded px-3 py-2 text-sm"
+            placeholder="Type a message..."
+          />
+          <button onClick={sendMessage} disabled={!input.trim()} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RideChat;

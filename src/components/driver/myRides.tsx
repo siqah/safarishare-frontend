@@ -3,6 +3,7 @@ import api from "../../lib/api";
 import { socket } from "../../lib/socket";
 import useAuth from "../../stores/authStore";
 import { getErrorMessage } from "../../lib/errors";
+import RideChat from "../messaging/RideChat";
 
 interface Ride {
   _id: string;
@@ -40,6 +41,7 @@ const MyRides = () => {
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [chatRideId, setChatRideId] = useState<string | null>(null);
 
   const fetchRides = useCallback(async () => {
     if (!token || user?.role !== "driver") return;
@@ -209,14 +211,22 @@ const MyRides = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {r.status === "active" && (
+                        <div className="flex gap-2 justify-center">
+                          {r.status === "active" && (
+                            <button
+                              onClick={() => cancelRide(r._id)}
+                              className="rounded-md bg-rose-500 px-3 py-1 text-xs font-medium text-white hover:bg-rose-600"
+                            >
+                              Cancel
+                            </button>
+                          )}
                           <button
-                            onClick={() => cancelRide(r._id)}
-                            className="rounded-md bg-rose-500 px-3 py-1 text-xs font-medium text-white hover:bg-rose-600"
+                            onClick={() => setChatRideId(r._id)}
+                            className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500"
                           >
-                            Cancel
+                            Chat
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -235,6 +245,9 @@ const MyRides = () => {
               })}
             </span>
           </div>
+        )}
+        {chatRideId && (
+          <RideChat rideId={chatRideId} onClose={() => setChatRideId(null)} />
         )}
       </div>
     </div>
