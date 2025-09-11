@@ -32,10 +32,10 @@ const AppRoutes = () => {
         <Route path="login" element={<Login />}></Route>
         <Route path="register" element={<Register />}></Route>
 
-        {/* Wrap main app under Layout so Header (NotificationBell) is present */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="upgrade" element={<UpgradeToDriver />} />
+        </Route>
+         <Route path="upgrade" element={<UpgradeToDriver />} />
           <Route path="driver-dashboard" element={<DriverDashboard />} />
           <Route path="create-ride" element={<CreateRideForm />} />
           <Route path="rides" element={<AvailableRides />} />
@@ -48,7 +48,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
-        </Route>
+        <Route path="*" element={<h1>404 - Not Found</h1>} />
       </Routes>
     </Router>
   );
