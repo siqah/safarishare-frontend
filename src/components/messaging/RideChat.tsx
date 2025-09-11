@@ -45,8 +45,16 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   const res = await api.get(`api/messages/ride/${rideId}`, { params: { page: pg, limit: PAGE_SIZE } });
       const { messages: list, total: t } = res.data;
       setTotal(t);
-      if (pg === 1) setMessages(list);
-      else setMessages(prev => [...list, ...prev]);
+      const normalized: ChatMessage[] = (list || []).map((m: any) => ({
+        id: m.id || m._id || `${rideId}-${m.sender}-${m.createdAt}`,
+        rideId: m.rideId || rideId,
+        sender: typeof m.sender === 'object' ? (m.sender._id || m.sender.id || String(m.sender)) : String(m.sender),
+        recipient: typeof m.recipient === 'object' ? (m.recipient._id || m.recipient.id || String(m.recipient)) : String(m.recipient),
+        body: m.body,
+        createdAt: m.createdAt,
+      }));
+      if (pg === 1) setMessages(normalized);
+      else setMessages(prev => [...normalized, ...prev]);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Load messages failed', e);
@@ -69,7 +77,18 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   useEffect(() => {
     const handler = (m: any) => {
       if (m.rideId !== rideId) return;
-      setMessages(prev => [...prev, m]);
+      const normalized: ChatMessage = {
+        id: m.id || m._id || `${rideId}-${m.sender}-${m.createdAt}`,
+        rideId: m.rideId || rideId,
+        sender: typeof m.sender === 'object' ? (m.sender._id || m.sender.id || String(m.sender)) : String(m.sender),
+        recipient: typeof m.recipient === 'object' ? (m.recipient._id || m.recipient.id || String(m.recipient)) : String(m.recipient),
+        body: m.body,
+        createdAt: m.createdAt,
+      };
+      setMessages(prev => {
+        if (prev.some(x => x.id === normalized.id)) return prev; // avoid duplicates
+        return [...prev, normalized];
+      });
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
     };
     socket.on('message:new', handler);
