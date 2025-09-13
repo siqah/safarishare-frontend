@@ -34,7 +34,14 @@ export function joinAsPassenger(passengerId: string | number) {
 export function connectSocket(user?: { id?: string; _id?: string; role?: string }) {
   const uid = user?.id || user?._id;
   if (!uid) return;
-  if (!socket.connected) socket.connect();
+  if (!socket.connected) {
+    socket.connect();
+  } else {
+    // Already connected: if same user, skip re-auth
+    const current = (socket as any).lastAuth;
+    if (current && current.userId === uid && current.role === user?.role) return;
+  }
+  (socket as any).lastAuth = { userId: uid, role: user?.role };
   socket.emit('auth', { userId: uid, role: user?.role });
 }
 

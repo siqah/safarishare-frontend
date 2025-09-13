@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Layout from "./components/Layout/Layout";
 import Home from "./pages/Home";
 import Login from "./components/auth/Login";
@@ -22,9 +22,19 @@ const AppRoutes = () => {
     checkAuth(); // ✅ restore session on refresh
   }, [checkAuth])
   // Ensure socket connects even if Header is not mounted yet
+  const socketTimer = useRef<number | null>(null);
   useEffect(() => {
-    if (user) connectSocket(user as unknown as { id?: string; _id?: string; role?: string });
-    else disconnectSocket();
+    if (socketTimer.current) {
+      window.clearTimeout(socketTimer.current);
+      socketTimer.current = null;
+    }
+    socketTimer.current = window.setTimeout(() => {
+      if (user) connectSocket(user as unknown as { id?: string; _id?: string; role?: string });
+      else disconnectSocket();
+    }, 150); // debounce to avoid rapid reconnect on auth state churn
+    return () => {
+      if (socketTimer.current) window.clearTimeout(socketTimer.current);
+    };
   }, [user]);
   return (
     <Router>

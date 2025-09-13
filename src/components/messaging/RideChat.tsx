@@ -139,8 +139,8 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
               className="text-xs border rounded px-1 py-0.5"
             >
               <option value="">Select passenger…</option>
-              {participants.map(p => (
-                <option key={p.id} value={p.id}>{p.name || p.email || p.id}</option>
+              {participants.map((p, idx) => (
+                <option key={p.id || `${idx}-${p.email}` } value={p.id}>{p.name || p.email || p.id}</option>
               ))}
             </select>
           )}
