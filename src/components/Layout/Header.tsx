@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Car, Menu, X } from 'lucide-react';
+import { Car, Menu, X, MessageSquare } from 'lucide-react';
 import useAuth from '../../stores/authStore';
+import NotificationBell from '../Notification/NotificationBell';
+import MessagesBadge from '../messaging/MessagesBadge';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -26,13 +28,28 @@ const Header: React.FC = () => {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center space-x-4">
-            {!user && (
+            {!user ? (
               <>
                 <Link to="/register" className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md">Register</Link>
                 <Link to="/login" className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md">Login</Link>
               </>
+            ) : (
+              <>
+                <NotificationBell />
+                <Link
+                  to="/messages"
+                  aria-label="Messages"
+                  className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  title="Messages"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <div className="absolute -top-1 -right-1">
+                    <MessagesBadge />
+                  </div>
+                </Link>
+              </>
             )}
-           
+          
           </nav>
 
           {/* Mobile menu toggle (always visible on mobile) */}
@@ -48,12 +65,23 @@ const Header: React.FC = () => {
         {/* Mobile menu */}
         {showMobileMenu && (
           <div className="md:hidden border-t border-gray-200 py-4">
-            {(
-              <div className="space-y-2">
-                <Link to="/register" onClick={() => setShowMobileMenu(false)} className="block px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500">Register</Link>
-                <Link to="/login" onClick={() => setShowMobileMenu(false)} className="block px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500">Login</Link>
-              </div>
-            )}
+            <div className="space-y-2">
+              {!user ? (
+                <>
+                  <Link to="/register" onClick={() => setShowMobileMenu(false)} className="block px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500">Register</Link>
+                  <Link to="/login" onClick={() => setShowMobileMenu(false)} className="block px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-500">Login</Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/messages" onClick={() => setShowMobileMenu(false)} className="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span className="inline-flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> Messages
+                    </span>
+                    <MessagesBadge />
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

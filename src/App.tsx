@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Layout from "./components/Layout/Layout";
 import Home from "./pages/Home";
 import Login from "./components/auth/Login";
@@ -13,6 +13,7 @@ import AvailableRides from "./components/ride/AvailableRides";
 import Bookings from "./components/ride/Bookings";
 import { useAuth } from "./stores/authStore";
 import { connectSocket, disconnectSocket } from "./lib/socket";
+import MessagesPage from "./pages/Messages";
 
 const AppRoutes = () => {
   const { checkAuth, user } = useAuth();
@@ -22,9 +23,19 @@ const AppRoutes = () => {
     checkAuth(); // ✅ restore session on refresh
   }, [checkAuth])
   // Ensure socket connects even if Header is not mounted yet
+  const socketTimer = useRef<number | null>(null);
   useEffect(() => {
-    if (user) connectSocket(user as unknown as { id?: string; _id?: string; role?: string });
-    else disconnectSocket();
+    if (socketTimer.current) {
+      window.clearTimeout(socketTimer.current);
+      socketTimer.current = null;
+    }
+    socketTimer.current = window.setTimeout(() => {
+      if (user) connectSocket(user as unknown as { id?: string; _id?: string; role?: string });
+      else disconnectSocket();
+    }, 150); // debounce to avoid rapid reconnect on auth state churn
+    return () => {
+      if (socketTimer.current) window.clearTimeout(socketTimer.current);
+    };
   }, [user]);
   return (
     <Router>
@@ -34,6 +45,14 @@ const AppRoutes = () => {
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route
+            path="messages"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
          <Route path="upgrade" element={<UpgradeToDriver />} />
           <Route path="driver-dashboard" element={<DriverDashboard />} />
