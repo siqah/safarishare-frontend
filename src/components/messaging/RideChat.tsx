@@ -38,7 +38,9 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [activePassengerId, setActivePassengerId] = useState<string | undefined>(passengerId);
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{ from?: string; to?: string } | null>(null);
   const [shareLoc, setShareLoc] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const geoWatchId = useRef<number | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
@@ -90,6 +92,15 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     }).catch(() => {/* ignore */});
   }, [user, rideId]);
 
+  // Load ride route info (from/destination) for drawing the route line on the map
+  useEffect(() => {
+    if (!rideId) return;
+    api.get(`api/ride/${rideId}`).then(res => {
+      const ride = res.data?.ride;
+      setRouteInfo({ from: ride?.startLocation, to: ride?.destination });
+    }).catch(() => setRouteInfo(null));
+  }, [rideId]);
+
   useEffect(() => {
     const handler = (m: any) => {
       if (m.rideId !== rideId) return;
@@ -111,9 +122,9 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     return () => { socket.off('message:new', handler); };
   }, [rideId]);
 
-  // Join ride room and listen to live driver location updates
+  // Join ride room and listen to live driver location updates only when map is visible
   useEffect(() => {
-    if (!rideId) return;
+    if (!rideId || !showMap) return;
     socket.emit('ride:join', { rideId });
     const onLoc = (p: any) => {
       if (p?.rideId !== rideId) return;
@@ -126,7 +137,7 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
       socket.emit('ride:leave', { rideId });
       socket.off('ride:location', onLoc);
     };
-  }, [rideId]);
+  }, [rideId, showMap]);
 
   // Driver: share own location to the ride room
   useEffect(() => {
@@ -197,8 +208,8 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-white">
-      <div className="px-3 py-2 border-b md:border-b-0 md:border-r flex items-center gap-3 md:w-[360px]">
+    <div className="flex flex-col h-full bg-white">
+      <div className="px-3 py-2 border-b flex items-center gap-3">
         {onClose && (
           <button onClick={onClose} className="md:hidden inline-flex items-center justify-center rounded p-1 hover:bg-gray-100" aria-label="Back">
             <ArrowLeft className="h-5 w-5 text-gray-700" />
@@ -224,42 +235,57 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
               Share live location
             </label>
           )}
+          <label className="inline-flex items-center gap-2 text-xs text-gray-700">
+            <input type="checkbox" checked={showMap} onChange={e => setShowMap(e.target.checked)} />
+            Show map
+          </label>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
-        {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
-        {canLoadMore && (
-          <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
-        )}
-        {user?.role === 'driver' && participants.length > 0 && !activePassengerId && (
-          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            Select a passenger from the dropdown above to start chatting.
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
+            {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
+            {canLoadMore && (
+              <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
+            )}
+            {user?.role === 'driver' && participants.length > 0 && !activePassengerId && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                Select a passenger from the dropdown above to start chatting.
+              </div>
+            )}
+            {messages.map(m => {
+              const mine = user && m.sender === user.id;
+              return (
+                <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 ${mine ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
+                  <div>{m.body}</div>
+                  <div className="mt-1 text-[10px] opacity-70">{new Date(m.createdAt).toLocaleTimeString()}</div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+          <div className="p-3 border-t flex gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), sendMessage())}
+              className="flex-1 border rounded px-3 py-2 text-sm"
+              placeholder="Type a message..."
+            />
+            <button onClick={sendMessage} disabled={!input.trim() || (user?.role === 'driver' && !activePassengerId)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
+          </div>
+        </div>
+        {showMap && (
+          <div className="md:w-[360px] w-full border-t md:border-t-0 md:border-l p-3">
+            <div className="text-xs text-gray-500 mb-2">Live driver location {routeInfo?.from && routeInfo?.to ? '· with route' : ''}</div>
+            <RideLiveMap rideId={rideId} driverPosition={driverPos} height={220} passengerPosition={undefined} fromAddress={routeInfo?.from} toAddress={routeInfo?.to} />
+            {routeInfo?.from && routeInfo?.to && (
+              <div className="mt-2 text-[11px] text-gray-500 truncate">
+                {routeInfo.from} → {routeInfo.to}
+              </div>
+            )}
           </div>
         )}
-        {messages.map(m => {
-          const mine = user && m.sender === user.id;
-          return (
-            <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 ${mine ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
-              <div>{m.body}</div>
-              <div className="mt-1 text-[10px] opacity-70">{new Date(m.createdAt).toLocaleTimeString()}</div>
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
-      </div>
-      <div className="p-3 border-t md:border-t-0 md:border-l md:w-[360px]">
-        <div className="text-xs text-gray-500 mb-2">Live driver location</div>
-        <RideLiveMap rideId={rideId} driverPosition={driverPos} height={220} />
-      </div>
-      <div className="p-3 border-t flex gap-2 md:absolute md:bottom-0 md:left-[360px] md:right-0 md:border-t">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), sendMessage())}
-          className="flex-1 border rounded px-3 py-2 text-sm"
-          placeholder="Type a message..."
-        />
-        <button onClick={sendMessage} disabled={!input.trim() || (user?.role === 'driver' && !activePassengerId)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
       </div>
     </div>
   );
