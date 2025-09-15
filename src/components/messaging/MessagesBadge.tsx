@@ -13,8 +13,11 @@ const MessagesBadge: React.FC = () => {
       const list = res.data?.conversations || [];
       const total = list.reduce((sum: number, c: any) => sum + (Number(c?.unread) || 0), 0);
       setUnread(total);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      // If endpoint not found in deployed backend, treat as 0 unread
+      if (err?.response?.status === 404) {
+        setUnread(0);
+      }
     } finally { setLoading(false); }
   };
 

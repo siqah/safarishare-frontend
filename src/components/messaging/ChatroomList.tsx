@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../lib/api';
 import { useAuth } from '../../stores/authStore';
-import RideChat from './RideChat';
 import { socket } from '../../lib/socket';
 
 export interface ConversationItem {
@@ -14,15 +13,16 @@ export interface ConversationItem {
 
 interface ChatroomListProps {
   className?: string;
-  onOpenChat?: (args: { rideId: string; passengerId?: string }) => void;
+  onSelect?: (args: { rideId: string; passengerId?: string }) => void;
 }
 
-const ChatroomList: React.FC<ChatroomListProps> = ({ className = '', onOpenChat }) => {
+const ChatroomList: React.FC<ChatroomListProps> = ({ className = '', onSelect }) => {
   const { user } = useAuth();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [active, setActive] = useState<{ rideId: string; passengerId?: string } | null>(null);
+  const [q, setQ] = useState('');
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   const isDriver = user?.role === 'driver';
 
@@ -32,9 +32,15 @@ const ChatroomList: React.FC<ChatroomListProps> = ({ className = '', onOpenChat 
       const res = await api.get('api/messages/conversations');
       setItems(res.data.conversations || []);
     } catch (e: any) {
-      // eslint-disable-next-line no-console
-      console.error('Load conversations error:', e?.response?.data || e);
-      setError('Failed to load conversations');
+      // If endpoint not found in deployed backend, show empty list without error
+      if (e?.response?.status === 404) {
+        setItems([]);
+        setError('');
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('Load conversations error:', e?.response?.data || e);
+        setError('Failed to load conversations');
+      }
     } finally { setLoading(false); }
   };
 
@@ -43,7 +49,6 @@ const ChatroomList: React.FC<ChatroomListProps> = ({ className = '', onOpenChat 
   // Real-time updates: refresh on new message (lightweight approach)
   useEffect(() => {
     const handler = (payload: { rideId?: string; sender?: string; recipient?: string; body?: string; createdAt?: string }) => {
-      if (active) return; // let chat handle
       if (!payload?.rideId) { load(); return; }
       setItems(prev => {
         const idx = prev.findIndex(c => c.rideId === payload.rideId);
@@ -65,81 +70,73 @@ const ChatroomList: React.FC<ChatroomListProps> = ({ className = '', onOpenChat 
     };
     socket.on('message:new', handler);
     return () => { socket.off('message:new', handler); };
-  }, [active]);
+  }, []);
 
-  const empty = !loading && items.length === 0;
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return items.filter(c => {
+      if (unreadOnly && (c.unread || 0) <= 0) return false;
+      if (!term) return true;
+      const rideText = `${c.ride?.startLocation || ''} ${c.ride?.destination || ''} ${c.rideId}`.toLowerCase();
+      const peerText = `${c.peer?.name || ''} ${c.peer?.email || ''} ${c.peer?.id || ''}`.toLowerCase();
+      const lastText = `${c.lastMessage?.body || ''}`.toLowerCase();
+      return rideText.includes(term) || peerText.includes(term) || lastText.includes(term);
+    });
+  }, [items, q, unreadOnly]);
+
+  const empty = !loading && filtered.length === 0;
 
   const openChat = (rideId: string, passengerId?: string) => {
-    if (onOpenChat) onOpenChat({ rideId, passengerId });
-    setActive({ rideId, passengerId });
+    onSelect?.({ rideId, passengerId });
   };
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800">Conversations</h2>
-          <p className="text-sm text-gray-500">Recent chatrooms with drivers and passengers</p>
-        </div>
-        <button onClick={load} disabled={loading} className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">Refresh</button>
+    <div className={`flex flex-col ${className}`}>
+      <div className="flex items-center gap-3 p-3 border-b bg-white">
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Search by ride, peer, message..."
+          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={unreadOnly} onChange={e => setUnreadOnly(e.target.checked)} />
+          Unread
+        </label>
+        <button onClick={load} disabled={loading} className="rounded bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">Refresh</button>
       </div>
-
-      {error && <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600">{error}</div>}
-
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="w-full border-collapse text-sm">
-          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
-            <tr>
-              <th className="px-4 py-3">Ride</th>
-              <th className="px-4 py-3">Peer</th>
-              <th className="px-4 py-3">Last message</th>
-              <th className="px-4 py-3 text-right">Unread</th>
-              <th className="px-4 py-3 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500">Loading…</td></tr>}
-            {empty && <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-500">No conversations yet.</td></tr>}
-            {!loading && items.map((c, idx) => (
-              <tr key={`${c.rideId}-${c.peer?.id || idx}`} className="hover:bg-indigo-50/40">
-                <td className="px-4 py-3 font-medium text-gray-800">
-                  {c.ride?.startLocation && c.ride?.destination ? (
-                    <div>
-                      <div>{c.ride.startLocation} → {c.ride.destination}</div>
-                      {c.ride.departureTime && (
-                        <div className="text-xs text-gray-500">{new Date(c.ride.departureTime).toLocaleString()}</div>
-                      )}
-                    </div>
-                  ) : (
-                    c.rideId
-                  )}
-                </td>
-                <td className="px-4 py-3 text-gray-700">{c.peer?.name || c.peer?.email || c.peer?.id || '-'}</td>
-                <td className="px-4 py-3 text-gray-600 truncate max-w-xs">{c.lastMessage?.body || '-'}</td>
-                <td className="px-4 py-3 text-right">
-                  {c.unread > 0 ? (
-                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200">{c.unread}</span>
-                  ) : (
-                    <span className="text-gray-400">0</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => openChat(c.rideId, isDriver ? c.peer?.id : undefined)}
-                    className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                  >
-                    Open Chat
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {error && <div className="px-3 py-2 text-sm text-rose-600 bg-rose-50 border-b border-rose-200">{error}</div>}
+      <div className="flex-1 overflow-y-auto">
+        {loading && <div className="px-4 py-6 text-center text-gray-500">Loading…</div>}
+        {empty && <div className="px-4 py-10 text-center text-gray-500">No conversations yet.</div>}
+        {!loading && filtered.map((c, idx) => (
+          <button
+            key={`${c.rideId}-${c.peer?.id || idx}`}
+            onClick={() => openChat(c.rideId, isDriver ? c.peer?.id : undefined)}
+            className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-indigo-50/60 border-b"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-medium text-gray-800 truncate">{c.peer?.name || c.peer?.email || c.peer?.id || 'Chat'}</div>
+                {c.unread > 0 && (
+                  <span className="shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200">{c.unread}</span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {c.ride?.startLocation && c.ride?.destination ? (
+                  <span>{c.ride.startLocation} → {c.ride.destination}</span>
+                ) : (
+                  <span>{c.rideId}</span>
+                )}
+                {c.ride?.departureTime && (
+                  <span> • {new Date(c.ride.departureTime).toLocaleString()}</span>
+                )}
+              </div>
+              <div className="mt-0.5 text-sm text-gray-600 truncate">{c.lastMessage?.body || '—'}</div>
+            </div>
+          </button>
+        ))}
       </div>
-
-      {active && (
-        <RideChat rideId={active.rideId} passengerId={active.passengerId} onClose={() => { setActive(null); load(); }} />
-      )}
     </div>
   );
 };

@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
-import { LogOut, Car, Clock, CheckCircle } from "lucide-react";
+import { LogOut, Car, Clock, CheckCircle, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";
 import useAuth from "../../stores/authStore";
 import MyRides from "./myRides";
 import CreateRideForm from "./CreateRideForm";
 import api from "../../lib/api";
 import NotificationBell from "../Notification/NotificationBell";
+import MessagesBadge from "../messaging/MessagesBadge";
 
 interface Ride {
   _id: string;
@@ -126,6 +128,18 @@ const Header = ({ userName, onLogout }: { userName?: string; onLogout: () => voi
       <div className="flex items-center gap-4">
         {/* Notifications */}
         <NotificationBell />
+        {/* Messages icon */}
+        <Link
+          to="/messages"
+          aria-label="Messages"
+          className="relative inline-flex items-center justify-center rounded-md p-2 text-white/90 hover:text-white hover:bg-white/10"
+          title="Messages"
+        >
+          <MessageSquare className="size-5" />
+          <div className="absolute -top-1 -right-1">
+            <MessagesBadge />
+          </div>
+        </Link>
         <div className="text-right">
           <span className="block text-sm font-semibold text-white">{userName}</span>
           <span className="text-[11px] uppercase tracking-wide font-medium text-indigo-100">
