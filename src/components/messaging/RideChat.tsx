@@ -95,7 +95,7 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   // Load ride route info (from/destination) for drawing the route line on the map
   useEffect(() => {
     if (!rideId) return;
-    api.get(`api/ride/${rideId}`).then(res => {
+    api.get(`api/ride/details/${rideId}`).then(res => {
       const ride = res.data?.ride;
       setRouteInfo({ from: ride?.startLocation, to: ride?.destination });
     }).catch(() => setRouteInfo(null));
