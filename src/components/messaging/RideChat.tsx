@@ -3,6 +3,7 @@ import api from '../../lib/api';
 import { socket } from '../../lib/socket';
 import useAuth from '../../stores/authStore';
 import { ArrowLeft } from 'lucide-react';
+import RideLiveMap from '../Map/RideLiveMap';
 
 interface ChatMessage {
   id: string;
@@ -36,6 +37,9 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   const [total, setTotal] = useState<number | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [activePassengerId, setActivePassengerId] = useState<string | undefined>(passengerId);
+  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [shareLoc, setShareLoc] = useState(false);
+  const geoWatchId = useRef<number | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -107,6 +111,54 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     return () => { socket.off('message:new', handler); };
   }, [rideId]);
 
+  // Join ride room and listen to live driver location updates
+  useEffect(() => {
+    if (!rideId) return;
+    socket.emit('ride:join', { rideId });
+    const onLoc = (p: any) => {
+      if (p?.rideId !== rideId) return;
+      if (typeof p.lat === 'number' && typeof p.lng === 'number') {
+        setDriverPos({ lat: p.lat, lng: p.lng });
+      }
+    };
+    socket.on('ride:location', onLoc);
+    return () => {
+      socket.emit('ride:leave', { rideId });
+      socket.off('ride:location', onLoc);
+    };
+  }, [rideId]);
+
+  // Driver: share own location to the ride room
+  useEffect(() => {
+    if (!shareLoc) {
+      if (geoWatchId.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchId.current);
+        geoWatchId.current = null;
+      }
+      return;
+    }
+    if (!('geolocation' in navigator)) {
+      // eslint-disable-next-line no-alert
+      alert('Geolocation not supported on this device');
+      setShareLoc(false);
+      return;
+    }
+    geoWatchId.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, speed } = pos.coords;
+        socket.emit('ride:location', { rideId, lat, lng, speed });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
+    return () => {
+      if (geoWatchId.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchId.current);
+        geoWatchId.current = null;
+      }
+    };
+  }, [shareLoc, rideId]);
+
   useEffect(() => {
     if (!rideId || !user) return;
     const unreadFromOther = messages.some(m => m.recipient === user.id);
@@ -145,15 +197,15 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-3 py-2 border-b flex items-center gap-3">
+    <div className="flex flex-col md:flex-row h-full bg-white">
+      <div className="px-3 py-2 border-b md:border-b-0 md:border-r flex items-center gap-3 md:w-[360px]">
         {onClose && (
           <button onClick={onClose} className="md:hidden inline-flex items-center justify-center rounded p-1 hover:bg-gray-100" aria-label="Back">
             <ArrowLeft className="h-5 w-5 text-gray-700" />
           </button>
         )}
         <h3 className="font-semibold text-sm">Ride Chat</h3>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
           {user?.role === 'driver' && participants.length > 0 && (
             <select
               value={activePassengerId || ''}
@@ -165,6 +217,12 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
                 <option key={p.id || `${idx}-${p.email}` } value={p.id}>{p.name || p.email || p.id}</option>
               ))}
             </select>
+          )}
+          {user?.role === 'driver' && (
+            <label className="inline-flex items-center gap-2 text-xs text-gray-700">
+              <input type="checkbox" checked={shareLoc} onChange={e => setShareLoc(e.target.checked)} />
+              Share live location
+            </label>
           )}
         </div>
       </div>
@@ -189,7 +247,11 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
         })}
         <div ref={bottomRef} />
       </div>
-      <div className="p-3 border-t flex gap-2">
+      <div className="p-3 border-t md:border-t-0 md:border-l md:w-[360px]">
+        <div className="text-xs text-gray-500 mb-2">Live driver location</div>
+        <RideLiveMap rideId={rideId} driverPosition={driverPos} height={220} />
+      </div>
+      <div className="p-3 border-t flex gap-2 md:absolute md:bottom-0 md:left-[360px] md:right-0 md:border-t">
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
