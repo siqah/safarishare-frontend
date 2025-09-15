@@ -1,33 +1,34 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import useAuth from "../../stores/authStore";
+import api from "../../lib/api";
 
 function UpgradeToDriver() {
   const [carModel, setCarModel] = useState("");
   const [carPlate, setCarPlate] = useState("");
-  const [seatsAvailable, setSeatsAvailable] = useState(1);
+  const [seatsAvailable, setSeatsAvailable] = useState<number>(1);
   const [licenseNumber, setLicenseNumber] = useState("");
-  const navigate = useNavigate()
-  const { token } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const handleUpgrade = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      await axios.post(
-        "http://localhost:10000/api/driver/upgrade",
-        { carModel, carPlate, seatsAvailable, licenseNumber },
-        {
-             headers: {
-             Authorization: `Bearer ${token}`, // 👈 send token here
-             }
-        }
-         
-      );
+      await api.post("/api/driver/upgrade", {
+        carModel,
+        carPlate,
+        seatsAvailable,
+        licenseNumber,
+      });
       alert("Successfully upgraded to driver!");
       navigate("/driver-dashboard");
-    } catch (err) {
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
       console.error(err);
-      alert("Failed to upgrade");
+      const msg = err?.response?.data?.message || err?.message || "Failed to upgrade";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -51,6 +52,7 @@ function UpgradeToDriver() {
       <input
         type="number"
         placeholder="Seats Available"
+        min={1}
         value={seatsAvailable}
         onChange={(e) => setSeatsAvailable(Number(e.target.value))}
         className="w-full border p-2 mb-2 rounded"
@@ -64,9 +66,10 @@ function UpgradeToDriver() {
       />
       <button
         onClick={handleUpgrade}
-        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+        disabled={submitting}
+        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        Upgrade
+        {submitting ? "Upgrading..." : "Upgrade"}
       </button>
     </div>
   );

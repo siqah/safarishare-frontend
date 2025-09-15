@@ -2,8 +2,11 @@ import axios from "axios";
 import useAuth from "../stores/authStore"; // adjust if it's a named export
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/",
+  // Prefer env var; fallback to deployed backend; final fallback to localhost for local dev
+  baseURL: import.meta.env.VITE_API_URL || "https://safarshare-backend.onrender.com" || "http://localhost:3000",
   withCredentials: false,
+  // Avoid hanging UI on unreachable hosts (e.g., wrong base URL in prod)
+  timeout: 15000,
 });
 
 // Attach token automatically
