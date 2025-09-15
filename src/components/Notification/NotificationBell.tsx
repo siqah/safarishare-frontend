@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../lib/api';
@@ -38,6 +39,9 @@ const NotificationBell: React.FC = () => {
   const [unread, setUnread] = useState(0);
   const [toast, setToast] = useState<{ title: string; message: string } | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const anchorRef = useRef<HTMLButtonElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 320 });
 
   const computedUnread = useMemo(() => items.filter(i => !i.isRead).length, [items]);
 
@@ -188,6 +192,42 @@ const NotificationBell: React.FC = () => {
     else document.title = base;
   }, [unread, computedUnread]);
 
+  // Position dropdown near the bell (rendered via portal)
+  useEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const width = 320; // match w-80
+      const margin = 8;
+      let left = rect.right - width;
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      const top = Math.min(rect.bottom + margin, window.innerHeight - margin);
+      setPos({ top, left, width });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (dropdownRef.current?.contains(t)) return;
+      if (anchorRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
   if (!user) return null;
 
   const badgeCount = Math.max(unread, computedUnread);
@@ -195,6 +235,7 @@ const NotificationBell: React.FC = () => {
   return (
     <div className="relative">
       <button
+        ref={anchorRef}
         onClick={() => setOpen(o => !o)}
         className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50"
         aria-label="Notifications"
@@ -206,8 +247,12 @@ const NotificationBell: React.FC = () => {
           </span>
         )}
       </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+          className="max-h-96 rounded-lg border border-gray-200 bg-white shadow-lg z-[1000]"
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
             <span className="text-sm font-semibold">Notifications</span>
             {items.length > 0 && (
@@ -217,53 +262,53 @@ const NotificationBell: React.FC = () => {
               </div>
             )}
           </div>
-          <div ref={listRef} onScroll={onScroll} className="max-h-80 overflow-auto">
-          <ul className="divide-y divide-gray-100">
-            {items.length === 0 && (
-              <li className="p-4 text-sm text-gray-500">No notifications</li>
-            )}
-            {items.map((n) => (
-              <li key={n._id} className="p-3 hover:bg-gray-50">
-                <div className="flex items-start gap-2">
-                  <div className={`mt-1 h-2 w-2 rounded-full ${n.isRead ? 'bg-gray-300' : 'bg-blue-600'}`} />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">{n.title}</div>
-                    <div className="text-xs text-gray-600">{n.message}</div>
-                    <div className="mt-1 text-[10px] text-gray-400">{new Date(n.createdAt).toLocaleString()}</div>
-                    <div className="mt-2 text-[11px]">
-                      {n.ride && (
-                        <Link to={`/rides?focus=${n.ride}`} className="text-blue-600 hover:underline">View ride</Link>
+          <div ref={listRef} onScroll={onScroll} className="max-h-80 overflow-auto w-80">
+            <ul className="divide-y divide-gray-100">
+              {items.length === 0 && (
+                <li className="p-4 text-sm text-gray-500">No notifications</li>
+              )}
+              {items.map((n) => (
+                <li key={n._id} className="p-3 hover:bg-gray-50">
+                  <div className="flex items-start gap-2">
+                    <div className={`mt-1 h-2 w-2 rounded-full ${n.isRead ? 'bg-gray-300' : 'bg-blue-600'}`} />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">{n.title}</div>
+                      <div className="text-xs text-gray-600">{n.message}</div>
+                      <div className="mt-1 text-[10px] text-gray-400">{new Date(n.createdAt).toLocaleString()}</div>
+                      <div className="mt-2 text-[11px]">
+                        {n.ride && (
+                          <Link to={`/rides?focus=${n.ride}`} className="text-blue-600 hover:underline">View ride</Link>
+                        )}
+                        {n.booking && (
+                          <span className="ml-2 text-gray-400">•</span>
+                        )}
+                        {n.booking && (
+                          <Link to={`/bookings?focus=${n.booking}`} className="ml-2 text-blue-600 hover:underline">View booking</Link>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {!n.isRead && (
+                        <button onClick={() => markRead(n._id)} className="text-xs text-blue-600 hover:underline">Mark read</button>
                       )}
-                      {n.booking && (
-                        <span className="ml-2 text-gray-400">•</span>
-                      )}
-                      {n.booking && (
-                        <Link to={`/bookings?focus=${n.booking}`} className="ml-2 text-blue-600 hover:underline">View booking</Link>
-                      )}
+                      <button onClick={() => deleteOne(n._id)} className="text-[11px] text-rose-600 hover:underline">Delete</button>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {!n.isRead && (
-                      <button onClick={() => markRead(n._id)} className="text-xs text-blue-600 hover:underline">Mark read</button>
-                    )}
-                    <button onClick={() => deleteOne(n._id)} className="text-[11px] text-rose-600 hover:underline">Delete</button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {loadingMore && (
-            <div className="border-t border-gray-100 p-2 text-center text-[11px] text-gray-500">Loading…</div>
-          )}
+                </li>
+              ))}
+            </ul>
+            {loadingMore && (
+              <div className="border-t border-gray-100 p-2 text-center text-[11px] text-gray-500">Loading…</div>
+            )}
           </div>
-
           {toast && (
-            <div className="fixed bottom-4 right-4 z-[60] max-w-sm rounded-lg border border-gray-200 bg-white shadow-lg p-3">
+            <div className="fixed bottom-4 right-4 z-[1100] max-w-sm rounded-lg border border-gray-200 bg-white shadow-lg p-3">
               <div className="text-sm font-semibold text-gray-900">{toast.title}</div>
               <div className="text-xs text-gray-600">{toast.message}</div>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
