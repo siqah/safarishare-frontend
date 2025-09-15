@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
 import api from '../../lib/api';
 import useAuth from '../../stores/authStore';
 import { getErrorMessage } from '../../lib/errors';
 import RideChat from '../messaging/RideChat';
+import MessagesBadge from '../messaging/MessagesBadge';
 
 interface Booking {
   _id: string;
@@ -26,6 +29,7 @@ const Bookings = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [chatRideId, setChatRideId] = useState<string | null>(null);
+  const [rebookLoadingId, setRebookLoadingId] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
     if(user?.role !== 'user') return;
@@ -51,6 +55,24 @@ const Bookings = () => {
     }
   };
 
+  const rebook = async (b: Booking) => {
+    setError(''); setSuccess('');
+    setRebookLoadingId(b._id);
+    try {
+      const seats = Math.max(1, b.seatsBooked || 1);
+      const res = await api.post(`api/ride/book/${b.ride._id}`, { seats });
+      // eslint-disable-next-line no-console
+      console.log('Rebook success', res.status, res.data);
+      setSuccess('Rebooked successfully');
+      // Refresh list to include the new booking record
+      await fetchBookings();
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Rebooking failed'));
+    } finally {
+      setRebookLoadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -58,7 +80,20 @@ const Bookings = () => {
           <h1 className="text-xl font-semibold text-gray-800">My Bookings</h1>
           <p className="text-sm text-gray-500">Manage your reserved seats.</p>
         </div>
-        <button onClick={fetchBookings} disabled={loading} className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">Refresh</button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/messages"
+            className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50"
+            title="Messages"
+            aria-label="Messages"
+          >
+            <MessageSquare className="w-5 h-5" />
+            <div className="absolute -top-1 -right-1">
+              <MessagesBadge />
+            </div>
+          </Link>
+          <button onClick={fetchBookings} disabled={loading} className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60">Refresh</button>
+        </div>
       </div>
       {error && <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600">{error}</div>}
       {success && <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-600">{success}</div>}
@@ -103,6 +138,15 @@ const Bookings = () => {
                         Cancel
                       </button>
                     </>
+                  )}
+                  {b.status === 'cancelled' && (
+                    <button
+                      onClick={() => rebook(b)}
+                      disabled={rebookLoadingId === b._id}
+                      className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+                    >
+                      {rebookLoadingId === b._id ? 'Rebooking...' : 'Rebook'}
+                    </button>
                   )}
                 </td>
               </tr>

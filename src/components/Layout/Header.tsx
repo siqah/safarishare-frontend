@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Car, Menu, X } from 'lucide-react';
+import { Car, Menu, X, MessageSquare } from 'lucide-react';
 import useAuth from '../../stores/authStore';
+import NotificationBell from '../Notification/NotificationBell';
 import MessagesBadge from '../messaging/MessagesBadge';
 
 const Header: React.FC = () => {
@@ -34,9 +35,17 @@ const Header: React.FC = () => {
               </>
             ) : (
               <>
-                <Link to="/messages" className="text-sm font-medium text-blue-600 hover:underline inline-flex items-center">
-                  Messages
-                  <MessagesBadge />
+                <NotificationBell />
+                <Link
+                  to="/messages"
+                  aria-label="Messages"
+                  className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  title="Messages"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  <div className="absolute -top-1 -right-1">
+                    <MessagesBadge />
+                  </div>
                 </Link>
               </>
             )}
@@ -64,8 +73,11 @@ const Header: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link to="/messages" onClick={() => setShowMobileMenu(false)} className="block px-3 py-2 text-sm font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100">
-                    <span className="inline-flex items-center">Messages <MessagesBadge /></span>
+                  <Link to="/messages" onClick={() => setShowMobileMenu(false)} className="flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100">
+                    <span className="inline-flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> Messages
+                    </span>
+                    <MessagesBadge />
                   </Link>
                 </>
               )}

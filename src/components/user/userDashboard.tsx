@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../../stores/authStore";
-import { LogOut, Car, Search, Menu, X } from "lucide-react";
+import { LogOut, Car, Search, Menu, X, MessageSquare } from "lucide-react";
 import NotificationBell from "../Notification/NotificationBell";
+import MessagesBadge from "../messaging/MessagesBadge";
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
@@ -45,6 +46,18 @@ const UserDashboard = () => {
 
             {/* Notifications */}
             <NotificationBell />
+            {/* Messages icon */}
+            <Link
+              to="/messages"
+              aria-label="Messages"
+              className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+              title="Messages"
+            >
+              <MessageSquare className="w-5 h-5" />
+              <div className="absolute -top-1 -right-1">
+                <MessagesBadge />
+              </div>
+            </Link>
 
             {user?.role !== "driver" && (
               <Link
@@ -80,8 +93,18 @@ const UserDashboard = () => {
               </button>
             </div>
             {/* Notifications (mobile) */}
-            <div className="mt-3">
+            <div className="mt-3 flex items-center gap-3">
               <NotificationBell />
+              <Link
+                to="/messages"
+                onClick={closeMenu}
+                className="flex items-center justify-between flex-1 px-3 py-2 text-sm font-medium rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" /> Messages
+                </span>
+                <MessagesBadge />
+              </Link>
             </div>
             {user?.role !== "driver" && (
               <Link

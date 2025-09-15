@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import api from '../../lib/api';
 import { socket } from '../../lib/socket';
 import useAuth from '../../stores/authStore';
+import { ArrowLeft } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -144,15 +145,20 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-md h-[520px] flex flex-col rounded shadow">
-        <div className="px-4 py-2 border-b flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-sm">Ride Chat</h3>
+    <div className="flex flex-col h-full bg-white">
+      <div className="px-3 py-2 border-b flex items-center gap-3">
+        {onClose && (
+          <button onClick={onClose} className="md:hidden inline-flex items-center justify-center rounded p-1 hover:bg-gray-100" aria-label="Back">
+            <ArrowLeft className="h-5 w-5 text-gray-700" />
+          </button>
+        )}
+        <h3 className="font-semibold text-sm">Ride Chat</h3>
+        <div className="ml-auto">
           {user?.role === 'driver' && participants.length > 0 && (
             <select
               value={activePassengerId || ''}
               onChange={e => setActivePassengerId(e.target.value || undefined)}
-              className="text-xs border rounded px-1 py-0.5"
+              className="text-xs border rounded px-1 py-1"
             >
               <option value="">Select passenger…</option>
               {participants.map((p, idx) => (
@@ -160,39 +166,38 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
               ))}
             </select>
           )}
-          {onClose && <button onClick={onClose} className="text-xs text-gray-500">Close</button>}
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
-          {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
-          {canLoadMore && (
-            <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
-          )}
-          {user?.role === 'driver' && participants.length > 0 && !activePassengerId && (
-            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              Select a passenger from the dropdown above to start chatting.
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm" onScroll={handleScroll}>
+        {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
+        {canLoadMore && (
+          <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
+        )}
+        {user?.role === 'driver' && participants.length > 0 && !activePassengerId && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            Select a passenger from the dropdown above to start chatting.
+          </div>
+        )}
+        {messages.map(m => {
+          const mine = user && m.sender === user.id;
+          return (
+            <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 ${mine ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
+              <div>{m.body}</div>
+              <div className="mt-1 text-[10px] opacity-70">{new Date(m.createdAt).toLocaleTimeString()}</div>
             </div>
-          )}
-          {messages.map(m => {
-            const mine = user && m.sender === user.id;
-            return (
-              <div key={m.id} className={`max-w-[80%] rounded px-3 py-2 ${mine ? 'ml-auto bg-indigo-600 text-white' : 'mr-auto bg-gray-100 text-gray-800'}`}>
-                <div>{m.body}</div>
-                <div className="mt-1 text-[10px] opacity-70">{new Date(m.createdAt).toLocaleTimeString()}</div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
-        </div>
-        <div className="p-3 border-t flex gap-2">
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), sendMessage())}
-            className="flex-1 border rounded px-3 py-2 text-sm"
-            placeholder="Type a message..."
-          />
-          <button onClick={sendMessage} disabled={!input.trim() || (user?.role === 'driver' && !activePassengerId)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
-        </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+      <div className="p-3 border-t flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), sendMessage())}
+          className="flex-1 border rounded px-3 py-2 text-sm"
+          placeholder="Type a message..."
+        />
+        <button onClick={sendMessage} disabled={!input.trim() || (user?.role === 'driver' && !activePassengerId)} className="bg-indigo-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50">Send</button>
       </div>
     </div>
   );
