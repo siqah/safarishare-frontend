@@ -18,6 +18,8 @@ interface Booking {
     destination: string;
     departureTime: string;
     price: number;
+    availableSeats?: number;
+    status?: string;
     driver?: { name: string; email: string };
   };
 }
@@ -140,13 +142,17 @@ const Bookings = () => {
                     </>
                   )}
                   {b.status === 'cancelled' && (
-                    <button
-                      onClick={() => rebook(b)}
-                      disabled={rebookLoadingId === b._id}
-                      className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
-                    >
-                      {rebookLoadingId === b._id ? 'Rebooking...' : 'Rebook'}
-                    </button>
+                    b.ride.status === 'active' && (b.ride.availableSeats ?? 1) > 0 ? (
+                      <button
+                        onClick={() => rebook(b)}
+                        disabled={rebookLoadingId === b._id}
+                        className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+                      >
+                        {rebookLoadingId === b._id ? 'Rebooking...' : 'Rebook'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-500">{b.ride.status === 'canceled' ? 'Ride cancelled by driver' : 'No seats available'}</span>
+                    )
                   )}
                 </td>
               </tr>
