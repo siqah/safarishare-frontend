@@ -42,7 +42,13 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
     if (!rideId) return;
     setLoading(true);
     try {
-  const res = await api.get(`api/messages/ride/${rideId}`, { params: { page: pg, limit: PAGE_SIZE } });
+  const res = await api.get(`api/messages/ride/${rideId}`, {
+        params: {
+          page: pg,
+          limit: PAGE_SIZE,
+          peer: user?.role === 'driver' ? (activePassengerId || '') : undefined,
+        },
+      });
       const { messages: list, total: t } = res.data;
       setTotal(t);
       const normalized: ChatMessage[] = (list || []).map((m: any) => ({
@@ -65,6 +71,11 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
   }, [rideId]);
 
   useEffect(() => { loadMessages(1); }, [loadMessages]);
+
+  // Scroll to bottom on initial load and when message count changes
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
 
   // Fetch participants if user is driver
   useEffect(() => {
@@ -97,18 +108,23 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
 
   useEffect(() => {
     if (!rideId || !user) return;
-  const unreadFromOther = messages.some(m => m.recipient === user.id);
+    const unreadFromOther = messages.some(m => m.recipient === user.id);
     if (unreadFromOther) {
-  api.post(`api/messages/ride/${rideId}/read`).catch(() => {});
+      api.post(`api/messages/ride/${rideId}/read`, {
+        peer: user.role === 'driver' ? activePassengerId : undefined,
+      }).catch(() => {});
     }
-  }, [messages, rideId, user]);
+  }, [messages, rideId, user, activePassengerId]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
     // For driver: must have a passenger selected
     if (user?.role === 'driver' && !activePassengerId) return;
     try {
-  await api.post(`api/messages/ride/${rideId}`, { body: input.trim(), passengerId: activePassengerId || passengerId });
+  const payload = { body: input.trim(), passengerId: activePassengerId || passengerId };
+      // eslint-disable-next-line no-console
+      console.log('Sending message payload', payload);
+      await api.post(`api/messages/ride/${rideId}`, payload);
       setInput('');
     } catch {
       // ignore
@@ -150,6 +166,11 @@ const RideChat: React.FC<Props> = ({ rideId, passengerId, onClose }) => {
           {loading && !messages.length && <div className="text-gray-400">Loading…</div>}
           {canLoadMore && (
             <div className="text-center text-[11px] text-gray-400 pb-2">Scroll up to load older…</div>
+          )}
+          {user?.role === 'driver' && participants.length > 0 && !activePassengerId && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Select a passenger from the dropdown above to start chatting.
+            </div>
           )}
           {messages.map(m => {
             const mine = user && m.sender === user.id;

@@ -112,7 +112,7 @@ const DriverDashboard = () => {
 };
 
 const Header = ({ userName, onLogout }: { userName?: string; onLogout: () => void }) => (
-  <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500 p-6 shadow-lg">
+  <header className="relative overflow-visible rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500 p-6 shadow-lg">
     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,white,transparent_60%)]" />
     <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
       <div>

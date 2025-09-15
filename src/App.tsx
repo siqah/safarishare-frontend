@@ -13,6 +13,7 @@ import AvailableRides from "./components/ride/AvailableRides";
 import Bookings from "./components/ride/Bookings";
 import { useAuth } from "./stores/authStore";
 import { connectSocket, disconnectSocket } from "./lib/socket";
+import MessagesPage from "./pages/Messages";
 
 const AppRoutes = () => {
   const { checkAuth, user } = useAuth();
@@ -44,6 +45,14 @@ const AppRoutes = () => {
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route
+            path="messages"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
          <Route path="upgrade" element={<UpgradeToDriver />} />
           <Route path="driver-dashboard" element={<DriverDashboard />} />
