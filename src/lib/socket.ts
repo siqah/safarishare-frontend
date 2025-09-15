@@ -6,6 +6,8 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_U
 export const socket = io(SOCKET_URL, {
   autoConnect: false,
   withCredentials: true,
+  // Prefer WebSocket to avoid polling issues behind some proxies/CDNs
+  transports: ['websocket'],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 500,
