@@ -42,23 +42,24 @@ const AppRoutes = () => {
       <Routes>
         <Route path="login" element={<Login />}></Route>
         <Route path="register" element={<Register />}></Route>
+         {/* <Route path="/" element={<Home />} /> */}
+
 
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route
-            path="messages"
-            element={
-              <ProtectedRoute>
-                <MessagesPage />
-              </ProtectedRoute>
-            }
-          />
         </Route>
          <Route path="upgrade" element={<UpgradeToDriver />} />
           <Route path="driver-dashboard" element={<DriverDashboard />} />
           <Route path="create-ride" element={<CreateRideForm />} />
           <Route path="rides" element={<AvailableRides />} />
           <Route path="bookings" element={<Bookings />} />
+          <Route path="messages"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="dashboard"
             element={
